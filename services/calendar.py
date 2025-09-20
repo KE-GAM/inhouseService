@@ -10,7 +10,7 @@ def calendar_home():
     my = db.execute("SELECT id,title,start,end FROM events WHERE kind='my' ORDER BY start DESC LIMIT 20").fetchall()
     vac = db.execute("SELECT id,title,start,end FROM events WHERE kind='vac' ORDER BY start DESC LIMIT 20").fetchall()
     company = db.execute("SELECT id,title,start,end FROM events WHERE kind='company' ORDER BY start DESC LIMIT 20").fetchall()
-    return render_template('calendar/main.html', my=my, vac=vac, company=company)
+    return render_template('calendar/main.html', my=my, vac=vac, company=company, active='calendar', user={'email': 'nota_inhouse@nota.ai'})
 
 @bp.route('/calendar/my/new', methods=['POST'])
 def calendar_my_new():

@@ -19,7 +19,7 @@ def create_app():
 
     @app.route('/')
     def index():
-        return render_template('hub.html')
+        return render_template('sidebar_base.html', title='Inhouse Services', active='home', user={'email': 'nota_inhouse@nota.ai'})
 
     # CLI: flask --app app init-db
     @app.cli.command('init-db')

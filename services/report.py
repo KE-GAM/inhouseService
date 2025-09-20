@@ -8,7 +8,7 @@ bp = Blueprint('report', __name__)
 def list_reports():
     db = get_db()
     rows = db.execute("SELECT id, asset_id, category, desc, status, created_at FROM tickets ORDER BY created_at DESC").fetchall()
-    return render_template('report/list.html', rows=rows)
+    return render_template('report/list.html', rows=rows, active='report', user={'email': 'nota_inhouse@nota.ai'})
 
 @bp.route('/report/inbound', methods=['POST'])
 def report_inbound():

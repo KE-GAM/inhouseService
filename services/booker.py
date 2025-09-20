@@ -17,7 +17,7 @@ def has_conflict(db, employee_id, resource_type, resource_id, date, slot):
 def booker_home():
     db = get_db()
     my = db.execute("SELECT resource_type, resource_id, date, slot FROM bookings ORDER BY created_at DESC LIMIT 20").fetchall()
-    return render_template('booker/main.html', my=my)
+    return render_template('booker/main.html', my=my, active='booker', user={'email': 'nota_inhouse@nota.ai'})
 
 @bp.route('/booker/reserve', methods=['POST'])
 def reserve():
