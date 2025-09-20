@@ -1,0 +1,27 @@
+
+{% extends "_base.html" %}
+{% block content %}
+<h1 class="mb-4">Inhouse Hub</h1>
+<div class="row g-3">
+  <div class="col-md-3">
+    <a class="card text-decoration-none" href="/announcements">
+      <div class="card-body"><h5 class="card-title">공지</h5><p class="mb-0">Slack 공지 미러링</p></div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a class="card text-decoration-none" href="/booker">
+      <div class="card-body"><h5 class="card-title">예약</h5><p class="mb-0">좌석/회의실</p></div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a class="card text-decoration-none" href="/calendar">
+      <div class="card-body"><h5 class="card-title">캘린더 허브</h5><p class="mb-0">My/Team/Company</p></div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a class="card text-decoration-none" href="/report">
+      <div class="card-body"><h5 class="card-title">Report-It</h5><p class="mb-0">QR 신고 현황</p></div>
+    </a>
+  </div>
+</div>
+{% endblock %}

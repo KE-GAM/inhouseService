@@ -1,0 +1,22 @@
+
+{% extends "_base.html" %}
+{% block content %}
+<h2>Report-It 현황</h2>
+<table class="table table-hover">
+  <thead><tr><th>ID</th><th>자산</th><th>분류</th><th>설명</th><th>상태</th><th>접수</th></tr></thead>
+  <tbody>
+  {% for t in rows %}
+    <tr>
+      <td>{{ t['id'] }}</td>
+      <td>{{ t['asset_id'] }}</td>
+      <td>{{ t['category'] }}</td>
+      <td>{{ t['desc'] }}</td>
+      <td>{{ t['status'] }}</td>
+      <td>{{ t['created_at'] }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="text-muted">아직 신고가 없습니다.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

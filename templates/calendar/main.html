@@ -1,0 +1,52 @@
+
+{% extends "_base.html" %}
+{% block content %}
+<h2>Calendar Hub</h2>
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link active" href="#my" data-bs-toggle="tab">My</a></li>
+  <li class="nav-item"><a class="nav-link" href="#vac" data-bs-toggle="tab">Team Vacation</a></li>
+  <li class="nav-item"><a class="nav-link" href="#company" data-bs-toggle="tab">Company</a></li>
+</ul>
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="my">
+    <form class="row g-2 mb-3" method="post" action="/calendar/my/new">
+      <div class="col-md-3"><input name="title" class="form-control" placeholder="제목"></div>
+      <div class="col-md-3"><input name="start" class="form-control" placeholder="YYYY-MM-DD HH:MM"></div>
+      <div class="col-md-3"><input name="end" class="form-control" placeholder="YYYY-MM-DD HH:MM"></div>
+      <div class="col-md-3"><button class="btn btn-primary w-100">추가</button></div>
+    </form>
+    <ul class="list-group">
+    {% for e in my %}
+      <li class="list-group-item">{{ e['start'] }}~{{ e['end'] }} — {{ e['title'] }}</li>
+    {% else %}
+      <li class="list-group-item text-muted">일정 없음</li>
+    {% endfor %}
+    </ul>
+  </div>
+  <div class="tab-pane fade" id="vac">
+    <p class="text-muted">CSV 업로드로 표시(데모에선 시드 읽기).</p>
+    <ul class="list-group">
+    {% for e in vac %}
+      <li class="list-group-item">{{ e['start'] }}~{{ e['end'] }} — {{ e['title'] }}</li>
+    {% else %}
+      <li class="list-group-item text-muted">데이터 없음</li>
+    {% endfor %}
+    </ul>
+  </div>
+  <div class="tab-pane fade" id="company">
+    <form class="row g-2 mb-3" method="post" action="/calendar/company/new">
+      <div class="col-md-3"><input name="title" class="form-control" placeholder="제목"></div>
+      <div class="col-md-3"><input name="start" class="form-control" placeholder="YYYY-MM-DD HH:MM"></div>
+      <div class="col-md-3"><input name="end" class="form-control" placeholder="YYYY-MM-DD HH:MM"></div>
+      <div class="col-md-3"><button class="btn btn-secondary w-100">회사 일정 등록</button></div>
+    </form>
+    <ul class="list-group">
+    {% for e in company %}
+      <li class="list-group-item">{{ e['start'] }}~{{ e['end'] }} — {{ e['title'] }}</li>
+    {% else %}
+      <li class="list-group-item text-muted">데이터 없음</li>
+    {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

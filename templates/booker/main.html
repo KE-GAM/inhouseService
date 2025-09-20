@@ -1,0 +1,29 @@
+
+{% extends "_base.html" %}
+{% block content %}
+<h2>Desk & Room Booker</h2>
+<form class="row g-2 mb-3" method="post" action="/booker/reserve">
+  <div class="col-md-2">
+    <select name="resource_type" class="form-select">
+      <option value="room">회의실</option>
+      <option value="desk">데스크</option>
+    </select>
+  </div>
+  <div class="col-md-3"><input name="resource_id" class="form-control" placeholder="자원 ID (예: 1)"></div>
+  <div class="col-md-3"><input name="date" class="form-control" placeholder="YYYY-MM-DD"></div>
+  <div class="col-md-2"><input name="slot" class="form-control" placeholder="09:00-10:00"></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">예약</button></div>
+</form>
+
+<h5 class="mt-4">내 예약</h5>
+<table class="table">
+  <thead><tr><th>자원</th><th>날짜</th><th>시간</th></tr></thead>
+  <tbody>
+  {% for b in my %}
+    <tr><td>{{ b['resource_type'] }} {{ b['resource_id'] }}</td><td>{{ b['date'] }}</td><td>{{ b['slot'] }}</td></tr>
+  {% else %}
+    <tr><td colspan="3" class="text-muted">예약 없음</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
