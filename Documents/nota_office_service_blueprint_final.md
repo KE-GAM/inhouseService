@@ -24,7 +24,7 @@ Cursor가 이 문서만으로 **프런트(React/TS), 백엔드(Flask), DB 스키
 ## 3. 사용자 흐름 (User Flow)
 
 ### 3.1 회의실
-1) 사용자가 웹/앱에서 회의실 선택  
+1) 현황판/SVG에서 회의실 선택  
    - **총 10개**: Disagree&Commit, Ownership, Customer-Centric, Trust, Leadership Principle, 회의실1~5  
 2) 선택 시 **ReservationPopover** 표시 → 시작/종료 시간(30분 단위 슬롯) 선택 → 예약 생성  
 3) 예약 시간에 맞춰 입실/퇴실  

@@ -34,14 +34,15 @@
 
         <!-- 여기부터 내 서비스 -->
         <a href="{{ url_for('notice.list_ann') }}" class="{{ 'active' if active=='notice' else '' }}">Nota Announcements</a>
-        <a href="{{ url_for('booker.booker_home') }}" class="{{ 'active' if active=='booker' else '' }}">Desk&Room Booker</a>
+        <a href="{{ url_for('booker.booker_home') }}" class="{{ 'active' if active=='booker' else '' }}">Desk & Room Booker</a>
         <a href="{{ url_for('calendar.calendar_home') }}" class="{{ 'active' if active=='calendar' else '' }}">Calendar HUB</a>
         <a href="{{ url_for('report.list_reports') }}" class="{{ 'active' if active=='report' else '' }}">Report-It</a>
       </nav>
     </div>
     <div class="footer">
       <div>현재: 일과중 시간</div>
-      <div>{{ user.email }} Dashboard</div>
+      <div>{{ user.name if user.name else user.email }}</div>
+      <div style="font-size: 10px; color: #999;">{{ user.org_name if user.org_name else '' }} {{ user.title if user.title else '' }}</div>
     </div>
   </aside>
 
@@ -50,5 +51,8 @@
     {% block content %}{% endblock %}
   </main>
 </div>
+
+<!-- Bootstrap JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>

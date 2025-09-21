@@ -8,6 +8,13 @@ export default defineConfig({
     outDir: resolve(__dirname, '../static/deskroom'), // Flask 정적 경로로 바로 출력
     emptyOutDir: true,
     manifest: true,
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/index.js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]'
+      }
+    }
   },
   base: '/static/deskroom/', // 번들 경로 기준
 })
