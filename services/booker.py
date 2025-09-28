@@ -2,10 +2,98 @@
 from flask import Blueprint, request, render_template, redirect, jsonify
 from db import get_db
 from datetime import datetime, timedelta
+from i18n import get_language_from_request
 import sqlite3
 import json
 
+# Admin monitoring logging
+def log_event(user_id, service, action, target_id=None, meta=None):
+    """모니터링 이벤트를 로깅합니다."""
+    try:
+        db = get_db()
+        meta_json = json.dumps(meta) if meta else None
+        
+        db.execute(
+            """INSERT INTO monitoring_events (ts, user_id, service, action, target_id, meta)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), user_id, service, action, target_id, meta_json)
+        )
+        db.commit()
+    except Exception as e:
+        print(f"Failed to log event: {e}")
+
 bp = Blueprint('booker', __name__)
+
+# HRIS 데이터 동기화 함수
+def sync_hris_employees():
+    """HRIS employees_basic.json 데이터를 동기화"""
+    db = get_db()
+    
+    try:
+        with open('HRIS data/employees_basic.json', 'r', encoding='utf-8') as f:
+            employees = json.load(f)
+        
+        # 기존 데이터 삭제 후 새로 삽입
+        db.execute("DELETE FROM hris_employees")
+        
+        for emp in employees:
+            db.execute("""
+                INSERT INTO hris_employees 
+                (employee_id, name, gender, dob, org_code, org_name, title, hire_date, email, location, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                emp['employee_id'], emp['name'], emp['gender'], emp['dob'],
+                emp['org_code'], emp['org_name'], emp['title'], emp['hire_date'],
+                emp['email'], emp['location'], emp['is_active']
+            ))
+        
+        db.commit()
+        return len(employees)
+    except Exception as e:
+        print(f"HRIS employees sync error: {e}")
+        return 0
+
+# HRIS 사용자 정보 조회 함수
+def get_user_info(user_email):
+    """사용자 정보 조회 (조직, 권한 포함)"""
+    db = get_db()
+    
+    # HRIS 데이터 동기화 (데이터가 없는 경우 자동 동기화)
+    employee_count = db.execute("SELECT COUNT(*) as count FROM hris_employees").fetchone()
+    if employee_count['count'] == 0:
+        print("HRIS 데이터가 없어서 자동 동기화를 실행합니다...")
+        sync_hris_employees()
+    
+    # HRIS에서 사용자 정보 조회
+    user_info = db.execute("""
+        SELECT employee_id, name, org_code, org_name, title, email
+        FROM hris_employees 
+        WHERE email = ? AND is_active = 1
+    """, (user_email,)).fetchone()
+    
+    if user_info:
+        # 이원규는 Admin 권한 부여
+        is_admin = user_info['email'] == 'lwk9589@gmail.com'
+        
+        return {
+            'employee_id': user_info['employee_id'],
+            'name': user_info['name'],
+            'org_code': user_info['org_code'],
+            'org_name': user_info['org_name'],
+            'title': user_info['title'],
+            'email': user_info['email'],
+            'is_admin': is_admin
+        }
+    
+    # 데모 사용자 (HRIS에 없는 경우)
+    return {
+        'employee_id': 'DEMO001',
+        'name': 'Demo User',
+        'org_code': 'UNKNOWN',
+        'org_name': 'Unknown Department',
+        'title': 'User',
+        'email': user_email
+    }
 
 # Helper functions
 def get_current_time():
@@ -67,7 +155,10 @@ def get_room_status(db, room_id, room_type):
 @bp.route('/booker')
 def booker_home():
     """Main dashboard page"""
-    return render_template('booker/main.html', active='booker', user={'email': 'user014@example.com'})
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
+    user_info = get_user_info(user_email)
+    lang = get_language_from_request(request)
+    return render_template('booker/main.html', active='booker', user=user_info, lang=lang)
 
 # API Routes
 @bp.route('/api/rooms/status')
@@ -108,7 +199,7 @@ def rooms_status():
 def user_status():
     """Get current user's reservations and focus room status"""
     db = get_db()
-    user_id = 1  # Demo user ID
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     
     # Get active focus room
     focus_room = db.execute("""
@@ -176,11 +267,38 @@ def room_reservations(room_id):
         start_time = data.get('start')
         end_time = data.get('end')
         
+        user_email = 'lwk9589@gmail.com'  # 현재 사용자 (실제로는 세션에서 가져와야 함)
+        target_id = f"R-{room_id}-{start_time}"
+        
+        # 예약 시도 로그
+        log_event(user_email, 'booker', 'reservation_attempt', target_id, {
+            'roomId': str(room_id),
+            'start': start_time,
+            'end': end_time,
+            'source': 'user'
+        })
+        
         if not start_time or not end_time:
+            # 예약 실패 로그
+            log_event(user_email, 'booker', 'reservation_failed', target_id, {
+                'roomId': str(room_id),
+                'start': start_time,
+                'end': end_time,
+                'reason': 'invalid',
+                'source': 'user'
+            })
             return jsonify({'error': 'Start and end time required'}), 400
         
         # Validate time order
         if parse_time(start_time) >= parse_time(end_time):
+            # 예약 실패 로그
+            log_event(user_email, 'booker', 'reservation_failed', target_id, {
+                'roomId': str(room_id),
+                'start': start_time,
+                'end': end_time,
+                'reason': 'invalid',
+                'source': 'user'
+            })
             return jsonify({'error': 'End time must be after start time'}), 400
         
         # Check for conflicts
@@ -191,6 +309,14 @@ def room_reservations(room_id):
         """, (room_id, start_time, end_time)).fetchone()
         
         if conflict:
+            # 예약 실패 로그 (중복)
+            log_event(user_email, 'booker', 'reservation_failed', target_id, {
+                'roomId': str(room_id),
+                'start': start_time,
+                'end': end_time,
+                'reason': 'overlap',
+                'source': 'user'
+            })
             return jsonify({'error': 'Time conflict with existing reservation'}), 409
         
         # Create reservation
@@ -208,18 +334,13 @@ def room_reservations(room_id):
             """, (room_id,)).fetchone()
             
             # Create calendar event for the reservation
-            user_email = 'user014@example.com'  # 한지원 - HR 팀 (calendar과 동일)
+            user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
             
             if room_info:
-                # Convert ISO time to timezone-aware format
+                # Store times as-is without timezone conversion
+                # JavaScript will handle timezone parsing consistently
                 calendar_start = start_time if 'T' in start_time else f"{start_time}T00:00:00"
                 calendar_end = end_time if 'T' in end_time else f"{end_time}T00:00:00"
-                
-                # Add timezone if not present
-                if '+' not in calendar_start and 'Z' not in calendar_start:
-                    calendar_start += '+09:00'
-                if '+' not in calendar_end and 'Z' not in calendar_end:
-                    calendar_end += '+09:00'
                 
                 room_location = f"{room_info['name']}"
                 if room_info['floor']:
@@ -241,6 +362,15 @@ def room_reservations(room_id):
             
             db.commit()
             
+            # 예약 성공 로그
+            log_event(user_email, 'booker', 'reservation_success', target_id, {
+                'roomId': str(room_id),
+                'start': start_time,
+                'end': end_time,
+                'reservationId': str(reservation_id),
+                'source': 'user'
+            })
+            
             return jsonify({
                 'id': reservation_id,
                 'room_id': room_id,
@@ -256,7 +386,7 @@ def room_reservations(room_id):
 def cancel_reservation(room_id, reservation_id):
     """Cancel a meeting room reservation"""
     db = get_db()
-    user_id = 1  # Demo user ID
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     
     # Verify reservation exists and is active
     reservation = db.execute("""
@@ -281,7 +411,7 @@ def cancel_reservation(room_id, reservation_id):
         """, (reservation_id,))
         
         # Also delete related calendar event
-        user_email = 'user014@example.com'  # 한지원 - HR 팀 (calendar과 동일)
+        user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
         
         # Find and delete calendar event with matching reservation ID
         deleted_events = db.execute("""
@@ -306,7 +436,7 @@ def cancel_reservation(room_id, reservation_id):
 def checkout_meeting_room(room_id):
     """Check out from a meeting room (early end)"""
     db = get_db()
-    user_id = 1  # Demo user ID
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     
     # Find active reservation for this room
     reservation = db.execute("""
@@ -341,7 +471,9 @@ def checkout_meeting_room(room_id):
 def claim_focus_room(room_id):
     """Claim a focus room (start using) - one per user"""
     db = get_db()
-    user_id = 1  # Demo user ID - in real app, get from session/auth
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
+    start_time = get_current_time()
+    target_id = f"F-{room_id}-{start_time}"
     
     # Verify room exists and is focus room
     room = db.execute("SELECT type FROM rooms WHERE id = ?", (room_id,)).fetchone()
@@ -369,7 +501,6 @@ def claim_focus_room(room_id):
         return jsonify({'error': f'You already have an active focus room: {user_active["name"]}'}), 409
     
     # Create occupancy
-    start_time = get_current_time()
     timer_duration = 7200  # 2 hours in seconds
     
     try:
@@ -380,6 +511,14 @@ def claim_focus_room(room_id):
         db.commit()
         
         end_time = (parse_time(start_time) + timedelta(seconds=timer_duration)).strftime('%Y-%m-%dT%H:%M:%S')
+        
+        # 포커스룸 찜하기 성공 로그
+        log_event(user_email, 'booker', 'claim_focusroom', target_id, {
+            'roomId': str(room_id),
+            'until': end_time,
+            'occupancyId': str(cursor.lastrowid),
+            'source': 'user'
+        })
         
         return jsonify({
             'id': cursor.lastrowid,

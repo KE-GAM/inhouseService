@@ -1,0 +1,287 @@
+{% extends 'sidebar_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- 헤더 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('guidebook.guidebook_home') }}" class="text-decoration-none">
+              📚 Guidebook
+            </a>
+          </li>
+          <li class="breadcrumb-item active">{{ section_info.name }}</li>
+        </ol>
+      </nav>
+      
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h2 mb-1">📖 {{ section_info.name }}</h1>
+          <p class="text-muted">{{ section_info.description }}</p>
+        </div>
+        <span class="badge bg-primary fs-6">{{ data|length }}개 용어</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 검색 및 필터 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 bg-light">
+        <div class="card-body">
+          <form method="GET" class="row g-3">
+            <div class="col-md-6">
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input type="text" 
+                       name="q" 
+                       value="{{ search_query }}" 
+                       class="form-control" 
+                       placeholder="용어명 또는 정의로 검색...">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select name="dept" class="form-select">
+                <option value="">전체 부서</option>
+                {% for dept in departments %}
+                <option value="{{ dept.code }}" 
+                        {{ 'selected' if dept_filter == dept.code else '' }}>
+                  {{ dept.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <select name="letter" class="form-select">
+                <option value="">전체 초성</option>
+                {% for letter in ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'] %}
+                <option value="{{ letter }}" 
+                        {{ 'selected' if request.args.get('letter') == letter else '' }}>
+                  {{ letter }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-1">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 초성 네비게이션 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex flex-wrap gap-2 justify-content-center">
+        <a href="{{ url_for('guidebook.guidebook_section', section='glossary') }}" 
+           class="btn btn-sm {{ 'btn-primary' if not request.args.get('letter') else 'btn-outline-secondary' }}">
+          전체
+        </a>
+        {% for letter in ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'] %}
+        <a href="{{ url_for('guidebook.guidebook_section', section='glossary', letter=letter) }}" 
+           class="btn btn-sm {{ 'btn-primary' if request.args.get('letter') == letter else 'btn-outline-secondary' }}">
+          {{ letter }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- 검색 결과 정보 -->
+  {% if search_query or dept_filter or request.args.get('letter') %}
+  <div class="row mb-3">
+    <div class="col-12">
+      <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+          <i class="bi bi-info-circle me-2"></i>
+          {% if search_query %}
+            "{{ search_query }}" 검색 결과
+          {% elif request.args.get('letter') %}
+            "{{ request.args.get('letter') }}" 초성 필터 결과
+          {% elif dept_filter %}
+            {{ departments|selectattr('code', 'equalto', dept_filter)|first|attr('name') }} 필터 결과
+          {% endif %}
+          - <strong>{{ data|length }}건</strong> 발견
+        </div>
+        <a href="{{ url_for('guidebook.guidebook_section', section='glossary') }}" 
+           class="btn btn-sm btn-outline-secondary">
+          전체 보기
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 용어 목록 -->
+  <div class="row">
+    {% for term in data %}
+    <div class="col-md-6 col-lg-4 mb-4">
+      <div class="card h-100 shadow-sm border-0">
+        <div class="card-body">
+          <!-- 용어 헤더 -->
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="flex-grow-1">
+              <h5 class="card-title mb-1">{{ term.term }}</h5>
+              <span class="badge bg-primary">{{ term.department }}</span>
+              {% if term.chosung %}
+              <span class="badge bg-light text-dark">{{ term.chosung }}</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- 정의 -->
+          <p class="card-text mb-3">{{ term.definition }}</p>
+
+          <!-- 동의어 -->
+          {% if term.synonyms %}
+          <div class="mb-3">
+            <small class="text-muted fw-bold">동의어:</small>
+            <div class="mt-1">
+              {% for synonym in term.synonyms %}
+              <span class="badge bg-light text-dark me-1">{{ synonym }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- 예시 -->
+          {% if term.examples %}
+          <div class="mb-3">
+            <small class="text-muted fw-bold">예시:</small>
+            <div class="mt-1">
+              <small class="text-muted fst-italic">"{{ term.examples }}"</small>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- 관련 용어 -->
+          {% if term.related_terms %}
+          <div class="mb-3">
+            <small class="text-muted fw-bold">관련 용어:</small>
+            <div class="mt-1">
+              {% for related in term.related_terms %}
+              <a href="#" class="badge bg-secondary text-decoration-none me-1" 
+                 onclick="searchTerm('{{ related }}')">
+                {{ related }}
+              </a>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- 태그 -->
+          {% if term.tags %}
+          <div class="mb-3">
+            {% for tag in term.tags %}
+            <span class="badge bg-light text-dark me-1">#{{ tag }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <!-- 메타 정보 -->
+          <div class="row text-muted small mt-auto">
+            <div class="col-12 text-end">
+              <i class="bi bi-calendar me-1"></i>{{ term.last_reviewed }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 결과가 없을 때 -->
+  {% if not data %}
+  <div class="row">
+    <div class="col-12">
+      <div class="text-center py-5">
+        <i class="bi bi-book display-1 text-muted"></i>
+        <h5 class="mt-3">용어가 없습니다</h5>
+        <p class="text-muted">다른 키워드로 검색하거나 필터를 조정해 보세요.</p>
+        {% if search_query %}
+        <div class="mt-3">
+          <a href="#" onclick="searchAllSections('{{ search_query }}')" class="btn btn-secondary">
+            <i class="bi bi-globe me-2"></i>전체 섹션에서 검색
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.badge {
+  font-size: 0.75em;
+}
+
+.btn-sm {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-sm:hover {
+  transform: translateY(-1px);
+}
+
+.fst-italic {
+  font-style: italic;
+}
+</style>
+
+<script>
+function searchTerm(term) {
+  const searchInput = document.querySelector('input[name="q"]');
+  searchInput.value = term;
+  searchInput.form.submit();
+}
+
+function searchAllSections(query) {
+  // 전체 섹션 검색 기능 (향후 구현)
+  alert('전체 섹션 검색 기능은 곧 제공됩니다.');
+}
+
+// 자동 필터 제출
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.querySelector('input[name="q"]');
+  const deptSelect = document.querySelector('select[name="dept"]');
+  const letterSelect = document.querySelector('select[name="letter"]');
+  
+  let searchTimeout;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      this.form.submit();
+    }, 500);
+  });
+  
+  deptSelect.addEventListener('change', function() {
+    this.form.submit();
+  });
+  
+  letterSelect.addEventListener('change', function() {
+    this.form.submit();
+  });
+});
+</script>
+
+<!-- Bootstrap Icons CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+{% endblock %}

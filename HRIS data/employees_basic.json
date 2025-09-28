@@ -898,5 +898,41 @@
     "location": "Seoul HQ",
     "employment_type": "FullTime",
     "is_active": true
+  },
+  {
+    "employee_id": "E1051",
+    "name": "강석훈",
+    "gender": "Male",
+    "dob": "1987-08-15",
+    "org_code": "FAC",
+    "org_name": "Facility management",
+    "title": "Manager",
+    "hire_date": "2019-03-01",
+    "days_employed": 2396,
+    "annual_leave_quota": 20,
+    "annual_leave_used": 9,
+    "annual_leave_remaining": 11,
+    "email": "user051@example.com",
+    "location": "Seoul HQ",
+    "employment_type": "FullTime",
+    "is_active": true
+  },
+  {
+    "employee_id": "E1052",
+    "name": "이원규",
+    "gender": "Male",
+    "dob": "1992-08-28",
+    "org_code": "SA",
+    "org_name": "Service Architect",
+    "title": "Developer",
+    "hire_date": "2019-03-01",
+    "days_employed": 2396,
+    "annual_leave_quota": 20,
+    "annual_leave_used": 9,
+    "annual_leave_remaining": 11,
+    "email": "lwk9589@gmail.com",
+    "location": "Seoul HQ",
+    "employment_type": "FullTime",
+    "is_active": true
   }
 ]

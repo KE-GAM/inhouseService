@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Language Test</title>
+</head>
+<body>
+    <h1>Language Test Page</h1>
+    <p>Current Language: <span id="currentLang">ko</span></p>
+    <button onclick="testLanguageSwitch()">Test Language Switch</button>
+    
+    <script>
+    function testLanguageSwitch() {
+        const currentLang = document.getElementById('currentLang').textContent;
+        const newLang = currentLang === 'ko' ? 'en' : 'ko';
+        
+        console.log('Current lang:', currentLang, 'Switching to:', newLang);
+        
+        // Test the language switch endpoint
+        fetch(`/set_language/${newLang}`)
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                return response.text();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                // Reload the page to see the change
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+    </script>
+</body>
+</html>
+

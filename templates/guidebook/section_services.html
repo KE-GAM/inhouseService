@@ -1,0 +1,307 @@
+{% extends 'sidebar_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- 헤더 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('guidebook.guidebook_home') }}" class="text-decoration-none">
+              📚 Guidebook
+            </a>
+          </li>
+          <li class="breadcrumb-item active">{{ section_info.name }}</li>
+        </ol>
+      </nav>
+      
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h2 mb-1">🏢 {{ section_info.name }}</h1>
+          <p class="text-muted">{{ section_info.description }}</p>
+        </div>
+        <span class="badge bg-primary fs-6">{{ data|length }}개 서비스</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 검색 및 필터 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 bg-light">
+        <div class="card-body">
+          <form method="GET" class="row g-3">
+            <div class="col-md-8">
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input type="text" 
+                       name="q" 
+                       value="{{ search_query }}" 
+                       class="form-control" 
+                       placeholder="서비스명 또는 설명으로 검색...">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select name="dept" class="form-select">
+                <option value="">전체 부서</option>
+                {% for dept in departments %}
+                <option value="{{ dept.code }}" 
+                        {{ 'selected' if dept_filter == dept.code else '' }}>
+                  {{ dept.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-1">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 검색 결과 정보 -->
+  {% if search_query or dept_filter %}
+  <div class="row mb-3">
+    <div class="col-12">
+      <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+          <i class="bi bi-info-circle me-2"></i>
+          {% if search_query and dept_filter %}
+            "{{ search_query }}" 검색 결과 ({{ departments|selectattr('code', 'equalto', dept_filter)|first|attr('name') }})
+          {% elif search_query %}
+            "{{ search_query }}" 검색 결과
+          {% elif dept_filter %}
+            {{ departments|selectattr('code', 'equalto', dept_filter)|first|attr('name') }} 필터 결과
+          {% endif %}
+          - <strong>{{ data|length }}건</strong> 발견
+        </div>
+        <a href="{{ url_for('guidebook.guidebook_section', section='services') }}" 
+           class="btn btn-sm btn-outline-secondary">
+          전체 보기
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 서비스 목록 -->
+  <div class="row">
+    {% for service in data %}
+    <div class="col-md-6 col-lg-4 mb-4">
+      <div class="card h-100 shadow-sm border-0">
+        <div class="card-body d-flex flex-column">
+          <!-- 서비스 헤더 -->
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="flex-grow-1">
+              <h5 class="card-title mb-2">{{ service.title }}</h5>
+              <div class="d-flex flex-wrap gap-1">
+                <span class="badge bg-primary">{{ service.department }}</span>
+                <span class="badge bg-info">{{ service.sla.split()[0] if service.sla else 'N/A' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 서비스 설명 -->
+          <p class="card-text text-muted mb-3">{{ service.description }}</p>
+
+          <!-- 대상 및 전제조건 -->
+          <div class="mb-3">
+            <small class="text-muted fw-bold">
+              <i class="bi bi-people me-1"></i>대상:
+            </small>
+            <div class="mt-1">
+              <span class="badge bg-light text-dark">{{ service.target_audience }}</span>
+            </div>
+          </div>
+
+          <!-- 요청 채널 -->
+          <div class="mb-3">
+            <small class="text-muted fw-bold">
+              <i class="bi bi-chat-dots me-1"></i>요청 방법:
+            </small>
+            <div class="mt-1">
+              {% for channel in service.request_channels %}
+              <div class="small mb-1">
+                {% if channel.preferred %}
+                <i class="bi bi-star-fill text-warning me-1"></i>
+                {% else %}
+                <i class="bi bi-circle me-1"></i>
+                {% endif %}
+                <strong>{{ channel.type }}:</strong> {{ channel.description }}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- SLA -->
+          {% if service.sla %}
+          <div class="mb-3">
+            <small class="text-muted fw-bold">
+              <i class="bi bi-clock me-1"></i>처리 시간:
+            </small>
+            <div class="mt-1">
+              <span class="badge bg-success">{{ service.sla }}</span>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- 운영 시간 -->
+          <div class="mb-3">
+            <small class="text-muted fw-bold">
+              <i class="bi bi-calendar-check me-1"></i>운영 시간:
+            </small>
+            <div class="mt-1">
+              <small class="text-muted">{{ service.operating_hours }}</small>
+            </div>
+          </div>
+
+          <!-- 담당자 -->
+          <div class="mb-3">
+            <small class="text-muted fw-bold">
+              <i class="bi bi-person me-1"></i>담당자:
+            </small>
+            <div class="mt-1">
+              <small class="text-muted">{{ service.contact_person }}</small>
+            </div>
+          </div>
+
+          <!-- 태그 -->
+          {% if service.tags %}
+          <div class="mb-3">
+            {% for tag in service.tags[:3] %}
+            <span class="badge bg-light text-dark me-1">#{{ tag }}</span>
+            {% endfor %}
+            {% if service.tags|length > 3 %}
+            <span class="badge bg-light text-dark">+{{ service.tags|length - 3 }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <!-- 마지막 검토일 -->
+          <div class="row text-muted small mb-3">
+            <div class="col-12 text-end">
+              <i class="bi bi-calendar me-1"></i>마지막 검토: {{ service.last_reviewed }}
+            </div>
+          </div>
+
+          <!-- 상세 보기 버튼 -->
+          <div class="mt-auto">
+            <a href="{{ url_for('guidebook.guidebook_detail', section='services', slug=service.slug) }}" 
+               class="btn btn-outline-primary w-100">
+              <i class="bi bi-eye me-2"></i>서비스 상세보기
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 결과가 없을 때 -->
+  {% if not data %}
+  <div class="row">
+    <div class="col-12">
+      <div class="text-center py-5">
+        <i class="bi bi-building display-1 text-muted"></i>
+        <h5 class="mt-3">서비스가 없습니다</h5>
+        <p class="text-muted">다른 키워드로 검색하거나 필터를 조정해 보세요.</p>
+        {% if search_query %}
+        <div class="mt-3">
+          <a href="#" onclick="searchAllSections('{{ search_query }}')" class="btn btn-secondary">
+            <i class="bi bi-globe me-2"></i>전체 섹션에서 검색
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 서비스 이용 가이드 -->
+  <div class="row mt-5">
+    <div class="col-12">
+      <div class="card border-0" style="background-color: #f8f9fa;">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3">
+            <i class="bi bi-info-circle me-2"></i>서비스 이용 가이드
+          </h6>
+          <div class="row">
+            <div class="col-md-6">
+              <ul class="list-unstyled small text-muted">
+                <li>• <strong>⭐ 표시</strong>된 요청 채널을 우선 이용하세요</li>
+                <li>• 각 서비스의 <strong>대상 및 전제조건</strong>을 확인하세요</li>
+                <li>• <strong>SLA(처리시간)</strong>을 참고하여 일정을 계획하세요</li>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <ul class="list-unstyled small text-muted">
+                <li>• <strong>운영시간</strong> 내에 요청하면 빠른 처리가 가능합니다</li>
+                <li>• 긴급한 경우 <strong>에스컬레이션</strong> 절차를 이용하세요</li>
+                <li>• 서비스 품질 개선 제안은 담당 부서에 직접 연락하세요</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.badge {
+  font-size: 0.75em;
+}
+
+.bi-star-fill {
+  color: #ffc107 !important;
+}
+
+.small {
+  font-size: 0.875em;
+}
+</style>
+
+<script>
+function searchAllSections(query) {
+  // 전체 섹션 검색 기능 (향후 구현)
+  alert('전체 섹션 검색 기능은 곧 제공됩니다.');
+}
+
+// 자동 필터 제출
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.querySelector('input[name="q"]');
+  const deptSelect = document.querySelector('select[name="dept"]');
+  
+  let searchTimeout;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      this.form.submit();
+    }, 500);
+  });
+  
+  deptSelect.addEventListener('change', function() {
+    this.form.submit();
+  });
+});
+</script>
+
+<!-- Bootstrap Icons CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+{% endblock %}

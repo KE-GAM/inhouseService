@@ -1,0 +1,454 @@
+{% extends 'sidebar_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- 헤더 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('guidebook.guidebook_home') }}" class="text-decoration-none">
+              📚 Guidebook
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('guidebook.guidebook_section', section=section) }}" class="text-decoration-none">
+              {% if section == 'policies' %}📋 Policies
+              {% elif section == 'faqs' %}❓ FAQs
+              {% elif section == 'glossary' %}📖 Glossary
+              {% elif section == 'procedures' %}📋 Procedures
+              {% elif section == 'services' %}🏢 Services
+              {% endif %}
+            </a>
+          </li>
+          <li class="breadcrumb-item active">{{ item.title }}</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- 메인 컨텐츠 -->
+    <div class="col-lg-8">
+      <!-- 문서 헤더 -->
+      <div class="card border-0 mb-4" style="background: linear-gradient(135deg, #05d182 0%, #04b96b 100%); color: white;">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <h1 class="h3 mb-2">{{ item.title }}</h1>
+              {% if item.summary or item.description %}
+              <p class="mb-3 opacity-90">{{ item.summary or item.description }}</p>
+              {% endif %}
+              
+              <!-- 메타데이터 배지들 -->
+              <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-light text-dark">{{ item.owner_dept or item.department }}</span>
+                {% if item.version %}
+                <span class="badge bg-light text-dark">v{{ item.version }}</span>
+                {% endif %}
+                {% if item.visibility and item.visibility != 'PUBLIC' %}
+                <span class="badge bg-warning text-dark">{{ item.visibility }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 문서 내용 -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          {% if section == 'policies' %}
+            <!-- 정책 문서 내용 -->
+            {% if item.content %}
+              {% if item.content.scope %}
+              <div class="mb-4">
+                <h6 class="fw-bold text-primary">
+                  <i class="bi bi-people me-2"></i>적용 범위
+                </h6>
+                <p>{{ item.content.scope }}</p>
+              </div>
+              {% endif %}
+
+              {% if item.content.effective_date %}
+              <div class="mb-4">
+                <h6 class="fw-bold text-primary">
+                  <i class="bi bi-calendar-check me-2"></i>시행일
+                </h6>
+                <p>{{ item.content.effective_date }}</p>
+              </div>
+              {% endif %}
+
+              {% if item.content.sections %}
+              <div class="mb-4">
+                <h6 class="fw-bold text-primary">
+                  <i class="bi bi-list-ul me-2"></i>세부 내용
+                </h6>
+                {% for section_item in item.content.sections %}
+                <div class="mb-3">
+                  <h6 class="fw-bold">{{ section_item.title }}</h6>
+                  <p>{{ section_item.content }}</p>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+
+              {% if item.content.violations %}
+              <div class="alert alert-warning">
+                <h6 class="fw-bold">
+                  <i class="bi bi-exclamation-triangle me-2"></i>위반 시 조치
+                </h6>
+                <p class="mb-0">{{ item.content.violations }}</p>
+              </div>
+              {% endif %}
+
+              {% if item.content.contact %}
+              <div class="alert alert-info">
+                <h6 class="fw-bold">
+                  <i class="bi bi-envelope me-2"></i>문의처
+                </h6>
+                <p class="mb-0">{{ item.content.contact }}</p>
+              </div>
+              {% endif %}
+            {% endif %}
+
+          {% elif section == 'procedures' %}
+            <!-- 절차 문서 내용 -->
+            {% if item.steps %}
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-list-ol me-2"></i>실행 단계
+              </h6>
+              {% for step in item.steps %}
+              <div class="card mb-3" id="{{ step.anchor }}">
+                <div class="card-body">
+                  <div class="d-flex align-items-start">
+                    <div class="badge bg-primary rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                         style="width: 2rem; height: 2rem;">
+                      {{ step.step }}
+                    </div>
+                    <div class="flex-grow-1">
+                      <h6 class="fw-bold mb-2">{{ step.title }}</h6>
+                      <p class="mb-0">{{ step.description }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if item.exceptions %}
+            <div class="alert alert-warning">
+              <h6 class="fw-bold">
+                <i class="bi bi-exclamation-triangle me-2"></i>예외사항
+              </h6>
+              <ul class="mb-0">
+                {% for exception in item.exceptions %}
+                <li>{{ exception }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+          {% elif section == 'services' %}
+            <!-- 서비스 문서 내용 -->
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <h6 class="fw-bold text-primary">
+                  <i class="bi bi-people me-2"></i>대상자
+                </h6>
+                <p>{{ item.target_audience }}</p>
+                
+                {% if item.prerequisites %}
+                <h6 class="fw-bold text-primary">
+                  <i class="bi bi-check-circle me-2"></i>전제조건
+                </h6>
+                <p>{{ item.prerequisites }}</p>
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                <h6 class="fw-bold text-primary">
+                  <i class="bi bi-clock me-2"></i>SLA
+                </h6>
+                <p>{{ item.sla }}</p>
+                
+                <h6 class="fw-bold text-primary">
+                  <i class="bi bi-calendar-check me-2"></i>운영시간
+                </h6>
+                <p>{{ item.operating_hours }}</p>
+              </div>
+            </div>
+
+            {% if item.request_channels %}
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-chat-dots me-2"></i>요청 채널
+              </h6>
+              {% for channel in item.request_channels %}
+              <div class="card mb-2">
+                <div class="card-body py-2">
+                  <div class="d-flex align-items-center">
+                    {% if channel.preferred %}
+                    <i class="bi bi-star-fill text-warning me-2"></i>
+                    {% endif %}
+                    <strong>{{ channel.type }}:</strong>
+                    <span class="ms-2">{{ channel.description }}</span>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if item.required_info %}
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-info-circle me-2"></i>필요 정보
+              </h6>
+              <ul>
+                {% for info in item.required_info %}
+                <li>{{ info }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            {% if item.escalation %}
+            <div class="alert alert-info">
+              <h6 class="fw-bold">
+                <i class="bi bi-arrow-up-circle me-2"></i>에스컬레이션
+              </h6>
+              <p class="mb-0">{{ item.escalation }}</p>
+            </div>
+            {% endif %}
+
+          {% elif section == 'glossary' %}
+            <!-- 용어집 내용 -->
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-book me-2"></i>정의
+              </h6>
+              <p>{{ item.definition }}</p>
+            </div>
+
+            {% if item.synonyms %}
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-tags me-2"></i>동의어
+              </h6>
+              <div>
+                {% for synonym in item.synonyms %}
+                <span class="badge bg-light text-dark me-1">{{ synonym }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            {% if item.examples %}
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-lightbulb me-2"></i>사용 예시
+              </h6>
+              <blockquote class="blockquote fst-italic">
+                "{{ item.examples }}"
+              </blockquote>
+            </div>
+            {% endif %}
+
+            {% if item.related_terms %}
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-link me-2"></i>관련 용어
+              </h6>
+              <div>
+                {% for term in item.related_terms %}
+                <a href="#" class="badge bg-secondary text-decoration-none me-1" 
+                   onclick="searchTerm('{{ term }}')">
+                  {{ term }}
+                </a>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+          {% elif section == 'faqs' %}
+            <!-- FAQ 내용은 섹션 페이지에서 처리됨 -->
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-question-circle me-2"></i>질문
+              </h6>
+              <p>{{ item.question }}</p>
+            </div>
+
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">
+                <i class="bi bi-lightbulb me-2"></i>답변
+              </h6>
+              <p>{{ item.detailed_answer or item.answer }}</p>
+            </div>
+          {% endif %}
+
+          <!-- 공통: 관련 정책 링크 -->
+          {% if item.related_policies %}
+          <div class="mb-4">
+            <h6 class="fw-bold text-primary">
+              <i class="bi bi-link-45deg me-2"></i>관련 정책
+            </h6>
+            <ul class="list-unstyled">
+              {% for policy in item.related_policies %}
+              <li>
+                <a href="{{ policy.url }}" class="text-decoration-none">
+                  <i class="bi bi-arrow-right me-1"></i>{{ policy.title }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <!-- 공통: 태그 -->
+          {% if item.tags %}
+          <div class="mb-4">
+            <h6 class="fw-bold text-primary">
+              <i class="bi bi-hash me-2"></i>태그
+            </h6>
+            <div>
+              {% for tag in item.tags %}
+              <span class="badge bg-light text-dark me-1">#{{ tag }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 수정 제안 버튼 -->
+      <div class="text-end mt-3">
+        <button class="btn btn-outline-secondary" onclick="suggestEdit('{{ item.id }}')">
+          <i class="bi bi-pencil me-2"></i>수정 제안
+        </button>
+      </div>
+    </div>
+
+    <!-- 사이드바 -->
+    <div class="col-lg-4">
+      <!-- 문서 정보 -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light">
+          <h6 class="mb-0 fw-bold">
+            <i class="bi bi-info-circle me-2"></i>문서 정보
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row mb-2">
+            <div class="col-4 text-muted small">담당 부서:</div>
+            <div class="col-8 small">{{ item.owner_dept or item.department }}</div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-4 text-muted small">작성자:</div>
+            <div class="col-8 small">{{ item.doc_owner or item.contact_person or 'N/A' }}</div>
+          </div>
+          {% if item.approver %}
+          <div class="row mb-2">
+            <div class="col-4 text-muted small">승인자:</div>
+            <div class="col-8 small">{{ item.approver }}</div>
+          </div>
+          {% endif %}
+          <div class="row mb-2">
+            <div class="col-4 text-muted small">마지막 검토:</div>
+            <div class="col-8 small">{{ item.last_reviewed }}</div>
+          </div>
+          {% if item.version %}
+          <div class="row mb-2">
+            <div class="col-4 text-muted small">버전:</div>
+            <div class="col-8 small">{{ item.version }}</div>
+          </div>
+          {% endif %}
+          {% if item.contact %}
+          <div class="row">
+            <div class="col-4 text-muted small">문의처:</div>
+            <div class="col-8 small">{{ item.contact }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 관련 문서 -->
+      {% if related_items %}
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light">
+          <h6 class="mb-0 fw-bold">
+            <i class="bi bi-collection me-2"></i>관련 문서
+          </h6>
+        </div>
+        <div class="card-body">
+          {% for related in related_items %}
+          <div class="mb-3 pb-3 border-bottom">
+            <h6 class="mb-1">
+              <a href="{{ url_for('guidebook.guidebook_detail', section=related.section, slug=related.slug) }}" 
+                 class="text-decoration-none">
+                {{ related.title }}
+              </a>
+            </h6>
+            <small class="text-muted">{{ related.section|title }} • {{ related.owner_dept or related.department }}</small>
+            {% if related.common_tags %}
+            <div class="mt-1">
+              {% for tag in related.common_tags %}
+              <span class="badge bg-light text-primary" style="font-size: 0.7em;">#{{ tag }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+.blockquote {
+  border-left: 4px solid #05d182;
+  padding-left: 1rem;
+  margin-left: 0;
+}
+
+.badge {
+  font-size: 0.75em;
+}
+
+.alert {
+  border-left: 4px solid;
+}
+
+.alert-warning {
+  border-left-color: #ffc107;
+}
+
+.alert-info {
+  border-left-color: #0dcaf0;
+}
+
+.bi-star-fill {
+  color: #ffc107 !important;
+}
+</style>
+
+<script>
+function suggestEdit(itemId) {
+  // 수정 제안 기능 (향후 구현)
+  alert(`문서 ${itemId}에 대한 수정 제안 기능은 곧 제공됩니다.`);
+}
+
+function searchTerm(term) {
+  // 용어 검색
+  window.location.href = `{{ url_for('guidebook.guidebook_section', section='glossary') }}?q=${encodeURIComponent(term)}`;
+}
+</script>
+
+<!-- Bootstrap Icons CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+{% endblock %}

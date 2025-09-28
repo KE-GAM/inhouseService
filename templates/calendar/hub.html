@@ -4,13 +4,13 @@
 <div class="container-fluid p-0">
   <!-- Calendar Hub Header -->
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">📅 Calendar Hub</h2>
+    <h2 class="mb-0">📅 {{ t('services.calendar') }}</h2>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-secondary btn-sm" onclick="refreshCalendar()">
-        🔄 새로고침
+        🔄 {{ t('common.refresh') }}
       </button>
       <button class="btn btn-primary btn-sm" onclick="showNewEventModal()" id="newEventBtn">
-        ➕ New Event
+        ➕ {{ t('calendar.new_event', 'New Event') }}
       </button>
     </div>
   </div>
@@ -19,15 +19,15 @@
   <ul class="nav nav-tabs mb-3" id="calendarTabs">
     <li class="nav-item">
       <a class="nav-link {{ 'active' if tab == 'my' else '' }}" 
-         href="#" onclick="switchTab('my')">My Calendar</a>
+         href="#" onclick="switchTab('my')">{{ t('calendar.my_calendar') }}</a>
     </li>
     <li class="nav-item">
       <a class="nav-link {{ 'active' if tab == 'vacation' else '' }}" 
-         href="#" onclick="switchTab('vacation')">Vacation Calendar</a>
+         href="#" onclick="switchTab('vacation')">{{ t('calendar.vacation_calendar') }}</a>
     </li>
     <li class="nav-item">
       <a class="nav-link {{ 'active' if tab == 'official' else '' }}" 
-         href="#" onclick="switchTab('official')">Official Events</a>
+         href="#" onclick="switchTab('official')">{{ t('calendar.official_events') }}</a>
     </li>
   </ul>
 
@@ -38,7 +38,7 @@
         <!-- Date Navigation -->
         <div class="btn-group">
           <button class="btn btn-outline-secondary" onclick="navigateDate('prev')">‹</button>
-          <button class="btn btn-outline-secondary" onclick="navigateDate('today')">Today</button>
+          <button class="btn btn-outline-secondary" onclick="navigateDate('today')">{{ t('calendar.today') }}</button>
           <button class="btn btn-outline-secondary" onclick="navigateDate('next')">›</button>
         </div>
         
@@ -49,11 +49,11 @@
         <!-- View Selector -->
         <div class="btn-group">
           <button class="btn {{ 'btn-primary' if view == 'month' else 'btn-outline-secondary' }}" 
-                  onclick="switchView('month')">월</button>
+                  onclick="switchView('month')">{{ t('calendar.month') }}</button>
           <button class="btn {{ 'btn-primary' if view == 'week' else 'btn-outline-secondary' }}" 
-                  onclick="switchView('week')">주</button>
+                  onclick="switchView('week')">{{ t('calendar.week') }}</button>
           <button class="btn {{ 'btn-primary' if view == 'day' else 'btn-outline-secondary' }}" 
-                  onclick="switchView('day')">일</button>
+                  onclick="switchView('day')">{{ t('calendar.day') }}</button>
         </div>
       </div>
     </div>
@@ -75,9 +75,9 @@
   <!-- Context Filter Bar (Vacation 탭에서만 표시) -->
   <div class="row mb-3 {{ 'd-none' if tab != 'vacation' else '' }}" id="contextFilterBar">
     <div class="col-md-6">
-      <label class="form-label">팀 선택:</label>
+      <label class="form-label">{{ t('calendar.team_selection') }}:</label>
       <select class="form-select" onchange="changeOrg(this.value)" id="orgSelector">
-        <option value="ALL">전체 팀</option>
+        <option value="ALL">{{ t('calendar.all_teams') }}</option>
         {% for org_item in orgs %}
           <option value="{{ org_item.org_code }}" {{ 'selected' if org_item.org_code == org else '' }}>
             {{ org_item.org_name }}
@@ -91,7 +91,7 @@
                {{ 'checked' if show_birthdays else '' }} 
                onchange="toggleBirthdays(this.checked)" id="birthdayToggle">
         <label class="form-check-label" for="birthdayToggle">
-          🎂 생일자 보기
+          🎂 {{ t('calendar.show_birthdays') }}
         </label>
       </div>
     </div>
@@ -103,9 +103,9 @@
       <!-- Loading State -->
       <div class="text-center py-5 d-none" id="loadingState">
         <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
+          <span class="visually-hidden">{{ t('common.loading') }}</span>
         </div>
-        <p class="mt-2 text-muted">캘린더를 불러오는 중...</p>
+        <p class="mt-2 text-muted">{{ t('calendar.loading_calendar') }}</p>
       </div>
 
       <!-- Calendar Grid -->
@@ -121,7 +121,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">이벤트 상세</h5>
+        <h5 class="modal-title">{{ t('calendar.event_detail') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="eventDetailBody">
@@ -139,44 +139,44 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">새 이벤트 생성</h5>
+        <h5 class="modal-title">{{ t('calendar.new_event_creation') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form id="newEventForm">
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label">제목</label>
+            <label class="form-label">{{ t('calendar.title') }}</label>
             <input type="text" class="form-control" name="title" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">설명</label>
+            <label class="form-label">{{ t('calendar.description') }}</label>
             <textarea class="form-control" name="description" rows="3"></textarea>
           </div>
           <div class="mb-3">
             <div class="form-check">
               <input class="form-check-input" type="checkbox" name="allDay" id="allDayCheck" onchange="toggleAllDay()">
-              <label class="form-check-label" for="allDayCheck">종일 이벤트</label>
+              <label class="form-check-label" for="allDayCheck">{{ t('calendar.all_day_event') }}</label>
             </div>
           </div>
           <div class="row mb-3">
             <div class="col-md-6">
-              <label class="form-label">시작 날짜</label>
+              <label class="form-label">{{ t('calendar.start_date') }}</label>
               <input type="datetime-local" class="form-control" name="start" id="startInput" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label">종료 날짜</label>
+              <label class="form-label">{{ t('calendar.end_date') }}</label>
               <input type="datetime-local" class="form-control" name="end" id="endInput" required>
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label">위치</label>
+            <label class="form-label">{{ t('calendar.location') }}</label>
             <input type="text" class="form-control" name="location">
           </div>
           <input type="hidden" name="eventType" id="eventTypeInput">
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-          <button type="submit" class="btn btn-primary">생성</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('calendar.cancel') }}</button>
+          <button type="submit" class="btn btn-primary">{{ t('calendar.create') }}</button>
         </div>
       </form>
     </div>
@@ -287,6 +287,142 @@
   right: 20px;
   z-index: 1050;
 }
+
+/* 다크모드 스타일 */
+[data-theme="dark"] .nav-tabs .nav-link {
+  color: #f0f6fc !important;
+  background-color: transparent !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+  background-color: #181a1b !important;
+  border-color: #30363d #30363d #181a1b !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+  border-color: #30363d #30363d #181a1b !important;
+  background-color: #181a1b !important;
+}
+
+[data-theme="dark"] .calendar-grid {
+  background-color: #30363d !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .calendar-cell {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .calendar-header {
+  background-color: #1b1e1f !important;
+  color: #f0f6fc !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .time-slot {
+  background-color: #1b1e1f !important;
+  color: #f0f6fc !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .today {
+  background-color: #2d4a5c !important;
+}
+
+[data-theme="dark"] .other-month {
+  color: #8b949e !important;
+  background-color: #1b1e1f !important;
+}
+
+[data-theme="dark"] .form-select {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .form-select:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .form-check-input {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .form-check-input:checked {
+  background-color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .form-check-label {
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+  color: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-primary {
+  color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .btn-outline-primary:hover {
+  background-color: #0d6efd !important;
+  border-color: #0d6efd !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-danger {
+  color: #dc3545 !important;
+  border-color: #dc3545 !important;
+}
+
+[data-theme="dark"] .btn-outline-danger:hover {
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .modal-content {
+  background-color: #181a1b !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .modal-header {
+  border-bottom-color: #30363d !important;
+}
+
+[data-theme="dark"] .modal-footer {
+  border-top-color: #30363d !important;
+}
+
+[data-theme="dark"] .form-control {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .form-control:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
 </style>
 
 <script>
@@ -298,6 +434,12 @@ let currentOrg = '{{ org }}';
 let showBirthdays = {{ 'true' if show_birthdays else 'false' }};
 let calendarEvents = [];
 let userInfo = {{ user | tojson }};
+
+// Helper function to parse date consistently
+function parseEventDate(dateString) {
+  // All dates are now timezone-free, parse as local time
+  return new Date(dateString);
+}
 
 // Initialize calendar on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -450,7 +592,10 @@ function loadCalendarEvents() {
     params.set('showBirthdays', showBirthdays ? '1' : '0');
   }
   
-  fetch(`/api/calendar/events?${params}`)
+  // Add timestamp and random number to prevent caching
+  const timestamp = new Date().getTime();
+  const random = Math.random().toString(36).substring(7);
+  fetch(`/api/calendar/events?${params}&_t=${timestamp}&_r=${random}`)
     .then(response => response.json())
     .then(events => {
       calendarEvents = events;
@@ -493,7 +638,7 @@ function renderWeekView(container) {
   timeHeader.className = 'calendar-header';
   grid.appendChild(timeHeader);
   
-  const days = ['월', '화', '수', '목', '금', '토', '일'];
+  const days = ['{{ t("calendar.mon") }}', '{{ t("calendar.tue") }}', '{{ t("calendar.wed") }}', '{{ t("calendar.thu") }}', '{{ t("calendar.fri") }}', '{{ t("calendar.sat") }}', '{{ t("calendar.sun") }}'];
   days.forEach((day, index) => {
     const header = document.createElement('div');
     header.className = 'calendar-header';
@@ -534,24 +679,60 @@ function renderWeekView(container) {
       // Calculate current day date
       const currentDayDate = new Date(weekStart);
       currentDayDate.setDate(weekStart.getDate() + day);
-      const dayString = currentDayDate.toISOString().split('T')[0];
+      // Use local date instead of UTC to avoid timezone issues
+      const dayString = currentDayDate.getFullYear() + '-' + 
+        String(currentDayDate.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(currentDayDate.getDate()).padStart(2, '0');
       
       // Add events for this time slot and day
       const cellEvents = calendarEvents.filter(event => {
-        const eventStart = new Date(event.start);
-        const eventDateString = eventStart.toISOString().split('T')[0];
+        const eventStart = parseEventDate(event.start);
+        const eventEnd = parseEventDate(event.end);
+        // Use local date instead of UTC to avoid timezone issues
+        const eventDateString = eventStart.getFullYear() + '-' + 
+          String(eventStart.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(eventStart.getDate()).padStart(2, '0');
         
         // All-day events or events on this day
         if (event.allDay || event.type === 'vacation' || event.type === 'birthday') {
           return eventDateString === dayString && hour === 9; // Show all-day events at 9 AM slot
         } else {
-          const eventHour = eventStart.getHours();
-          return eventDateString === dayString && eventHour === hour;
+          // Check if this hour is within the event's time range
+          const eventStartHour = eventStart.getHours();
+          const eventEndHour = eventEnd.getHours();
+          const eventEndMinute = eventEnd.getMinutes();
+          
+          // If event ends at exactly the hour, don't include that hour
+          const effectiveEndHour = (eventEndMinute === 0) ? eventEndHour - 1 : eventEndHour;
+          
+          return eventDateString === dayString && 
+                 hour >= eventStartHour && 
+                 hour <= effectiveEndHour;
         }
       });
       
       cellEvents.forEach(event => {
         const eventEl = createEventElement(event);
+        // Only show event title on the first hour of the event
+        const eventStart = parseEventDate(event.start);
+        const eventStartHour = eventStart.getHours();
+        if (hour !== eventStartHour) {
+          eventEl.textContent = ''; // Empty content for continuation hours
+          // Apply lighter background for continuation using the same color as the main event
+          const eventId = event.id || 0;
+          const colorIndex = eventId % 8;
+          const colors = [
+            'rgba(0, 123, 255, 0.3)', // Blue
+            'rgba(40, 167, 69, 0.3)', // Green  
+            'rgba(220, 53, 69, 0.3)', // Red
+            'rgba(255, 193, 7, 0.3)', // Yellow
+            'rgba(23, 162, 184, 0.3)', // Cyan
+            'rgba(111, 66, 193, 0.3)', // Purple
+            'rgba(253, 126, 20, 0.3)', // Orange
+            'rgba(32, 201, 151, 0.3)'  // Teal
+          ];
+          eventEl.style.backgroundColor = colors[colorIndex];
+        }
         cell.appendChild(eventEl);
       });
       
@@ -567,7 +748,7 @@ function renderMonthView(container) {
   grid.className = 'calendar-grid month-view';
   
   // Day headers
-  const days = ['월', '화', '수', '목', '금', '토', '일'];
+  const days = ['{{ t("calendar.mon") }}', '{{ t("calendar.tue") }}', '{{ t("calendar.wed") }}', '{{ t("calendar.thu") }}', '{{ t("calendar.fri") }}', '{{ t("calendar.sat") }}', '{{ t("calendar.sun") }}'];
   days.forEach(day => {
     const header = document.createElement('div');
     header.className = 'calendar-header';
@@ -593,7 +774,10 @@ function renderMonthView(container) {
       
       const currentDay = new Date(startDate);
       currentDay.setDate(startDate.getDate() + (week * 7 + day));
-      const dayString = currentDay.toISOString().split('T')[0];
+      // Use local date instead of UTC to avoid timezone issues
+      const dayString = currentDay.getFullYear() + '-' + 
+        String(currentDay.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(currentDay.getDate()).padStart(2, '0');
       
       // Add day number
       const dayLabel = document.createElement('div');
@@ -624,8 +808,22 @@ function renderMonthView(container) {
       
       // Add events for this day
       const dayEvents = calendarEvents.filter(event => {
-        const eventStart = new Date(event.start);
-        const eventDateString = eventStart.toISOString().split('T')[0];
+        const eventStart = parseEventDate(event.start);
+        // Use local date instead of UTC to avoid timezone issues
+        const eventDateString = eventStart.getFullYear() + '-' + 
+          String(eventStart.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(eventStart.getDate()).padStart(2, '0');
+        
+        // Debug log for month view
+        if (eventDateString === dayString) {
+          console.log(`Event "${event.title}" matches day ${dayString}:`, {
+            eventStart: event.start,
+            parsedDate: eventStart,
+            eventDateString: eventDateString,
+            dayString: dayString
+          });
+        }
+        
         return eventDateString === dayString;
       });
       
@@ -672,20 +870,53 @@ function renderDayView(container) {
     
     // Add events for this hour and day
     const cellEvents = calendarEvents.filter(event => {
-      const eventStart = new Date(event.start);
-      const eventDateString = eventStart.toISOString().split('T')[0];
+      const eventStart = parseEventDate(event.start);
+      const eventEnd = parseEventDate(event.end);
+      // Use local date instead of UTC to avoid timezone issues
+      const eventDateString = eventStart.getFullYear() + '-' + 
+        String(eventStart.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(eventStart.getDate()).padStart(2, '0');
       
       // All-day events or events on this day
       if (event.allDay || event.type === 'vacation' || event.type === 'birthday') {
         return eventDateString === dayString && hour === 9; // Show all-day events at 9 AM slot
       } else {
-        const eventHour = eventStart.getHours();
-        return eventDateString === dayString && eventHour === hour;
+        // Check if this hour is within the event's time range
+        const eventStartHour = eventStart.getHours();
+        const eventEndHour = eventEnd.getHours();
+        const eventEndMinute = eventEnd.getMinutes();
+        
+        // If event ends at exactly the hour, don't include that hour
+        const effectiveEndHour = (eventEndMinute === 0) ? eventEndHour - 1 : eventEndHour;
+        
+        return eventDateString === dayString && 
+               hour >= eventStartHour && 
+               hour <= effectiveEndHour;
       }
     });
     
     cellEvents.forEach(event => {
       const eventEl = createEventElement(event);
+      // Only show event title on the first hour of the event
+      const eventStart = parseEventDate(event.start);
+      const eventStartHour = eventStart.getHours();
+      if (hour !== eventStartHour) {
+        eventEl.textContent = ''; // Empty content for continuation hours
+        // Apply lighter background for continuation using the same color as the main event
+        const eventId = event.id || 0;
+        const colorIndex = eventId % 8;
+        const colors = [
+          'rgba(0, 123, 255, 0.3)', // Blue
+          'rgba(40, 167, 69, 0.3)', // Green  
+          'rgba(220, 53, 69, 0.3)', // Red
+          'rgba(255, 193, 7, 0.3)', // Yellow
+          'rgba(23, 162, 184, 0.3)', // Cyan
+          'rgba(111, 66, 193, 0.3)', // Purple
+          'rgba(253, 126, 20, 0.3)', // Orange
+          'rgba(32, 201, 151, 0.3)'  // Teal
+        ];
+        eventEl.style.backgroundColor = colors[colorIndex];
+      }
       cell.appendChild(eventEl);
     });
     
@@ -705,6 +936,34 @@ function createEventElement(event) {
   
   if (event.status === 'CANCELLED') {
     eventEl.classList.add('cancelled');
+  }
+  
+  // Apply unique colors based on event ID for better distinction
+  const eventId = event.id || 0;
+  const colorIndex = eventId % 8; // Use 8 different colors
+  
+  const colors = [
+    '#007bff', // Blue
+    '#28a745', // Green  
+    '#dc3545', // Red
+    '#ffc107', // Yellow
+    '#17a2b8', // Cyan
+    '#6f42c1', // Purple
+    '#fd7e14', // Orange
+    '#20c997'  // Teal
+  ];
+  
+  // Override default colors with unique colors for better distinction
+  if (event.type === 'my') {
+    eventEl.style.backgroundColor = colors[colorIndex];
+  } else if (event.type === 'vacation') {
+    // Vacation events get green variations
+    const greenVariations = ['#28a745', '#20c997', '#6c757d', '#17a2b8'];
+    eventEl.style.backgroundColor = greenVariations[colorIndex % greenVariations.length];
+  } else if (event.type === 'official') {
+    // Official events get red variations
+    const redVariations = ['#dc3545', '#fd7e14', '#6f42c1', '#e83e8c'];
+    eventEl.style.backgroundColor = redVariations[colorIndex % redVariations.length];
   }
   
   eventEl.textContent = event.title;
@@ -826,8 +1085,8 @@ function showEventDetail(event) {
 window.showEventDetail = showEventDetail;
 
 function formatEventTime(event) {
-  const start = new Date(event.start);
-  const end = new Date(event.end);
+  const start = parseEventDate(event.start);
+  const end = parseEventDate(event.end);
   
   if (event.allDay) {
     return start.toLocaleDateString('ko-KR');
@@ -970,7 +1229,10 @@ document.getElementById('newEventForm').addEventListener('submit', function(e) {
         const modalInstance = bootstrap.Modal.getInstance(document.getElementById('newEventModal'));
         if (modalInstance) modalInstance.hide();
       }
-      loadCalendarEvents();
+      // Add small delay to ensure database is updated
+      setTimeout(() => {
+        loadCalendarEvents();
+      }, 100);
       this.reset();
       this.removeAttribute('data-edit-id');
       document.querySelector('#newEventModal .modal-title').textContent = '새 이벤트 생성';
