@@ -1,7 +1,7 @@
 
 from flask import Flask, render_template, request, make_response
 from db import init_db_command
-from services.noonpick import bp as noonpick_bp
+from services.noonpick import bp as noonpick_bp, validate_api_keys
 from services.booker import bp as booker_bp
 from services.calendar import bp as calendar_bp
 from services.report import bp as report_bp
@@ -9,6 +9,10 @@ from services.guidebook import bp as guidebook_bp
 from services.admin import bp as admin_bp
 from i18n import get_language_from_request, t, with_language
 import sqlite3
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv()
 
 def create_app():
     app = Flask(__name__)
@@ -96,5 +100,9 @@ def create_app():
     return app
 
 if __name__ == '__main__':
+    # API 키 검증
+    if not validate_api_keys():
+        print("일부 API 키가 설정되지 않았습니다. 서비스가 제한적으로 동작할 수 있습니다.")
+    
     app = create_app()
     app.run(debug=True, port=8000)

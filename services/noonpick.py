@@ -10,6 +10,30 @@ from db import get_db
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from i18n import get_language_from_request
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv()
+
+def validate_api_keys():
+    """API 키가 모두 설정되었는지 검증"""
+    required_keys = [
+        'KAKAO_REST_API_KEY',
+        'KAKAO_JAVASCRIPT_KEY', 
+        'GOOGLE_PLACES_API_KEY'
+    ]
+    
+    missing_keys = []
+    for key in required_keys:
+        if not os.environ.get(key):
+            missing_keys.append(key)
+    
+    if missing_keys:
+        print(f"경고: 다음 API 키가 설정되지 않았습니다: {', '.join(missing_keys)}")
+        print("env.example 파일을 참고하여 .env 파일을 생성하세요.")
+        return False
+    
+    return True
 
 # Admin monitoring logging
 def log_event(user_id, service, action, target_id=None, meta=None):
@@ -42,6 +66,12 @@ CATEGORY_MAP = [
     ("CAFE",     ["카페","디저트","빵","베이커리"])
 ]
 
+# 환경 변수에서 API 키 로드 (기본값 없음 - 보안상 안전)
+KAKAO_REST_API_KEY = os.environ.get('KAKAO_REST_API_KEY')
+KAKAO_JAVASCRIPT_KEY = os.environ.get('KAKAO_JAVASCRIPT_KEY')
+OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
+GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY')
+
 def map_category_to_big_categories(category_name):
     """카카오 카테고리를 대분류로 매핑"""
     big_cats = []
@@ -53,6 +83,10 @@ def map_category_to_big_categories(category_name):
 
 def geocode_address(address):
     """카카오 지오코딩 API로 주소를 좌표로 변환"""
+    if not KAKAO_REST_API_KEY:
+        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
+        return None, None
+        
     url = "https://dapi.kakao.com/v2/local/search/address.json"
     headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
     params = {"query": address}
@@ -71,6 +105,10 @@ def geocode_address(address):
 
 def search_places_by_category(lat, lng, radius, category="음식점", page=1):
     """카카오 Local API로 장소 검색"""
+    if not KAKAO_REST_API_KEY:
+        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
+        return None
+        
     url = "https://dapi.kakao.com/v2/local/search/category.json"
     headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
     params = {
@@ -92,6 +130,10 @@ def search_places_by_category(lat, lng, radius, category="음식점", page=1):
 
 def get_place_photos(place_id):
     """카카오 Place API로 장소 사진 정보 조회"""
+    if not KAKAO_REST_API_KEY:
+        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
+        return None
+        
     url = f"https://dapi.kakao.com/v2/local/place/{place_id}.json"
     headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
     
@@ -116,6 +158,10 @@ def get_place_photos(place_id):
 
 def search_google_place(place_name, lat, lng):
     """Google Places API로 장소 검색"""
+    if not GOOGLE_PLACES_API_KEY:
+        print("GOOGLE_PLACES_API_KEY가 설정되지 않았습니다.")
+        return None
+        
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     params = {
         'location': f"{lat},{lng}",
@@ -142,6 +188,10 @@ def search_google_place(place_name, lat, lng):
 
 def get_google_place_photos(place_id):
     """Google Places API로 장소 사진 정보 조회"""
+    if not GOOGLE_PLACES_API_KEY:
+        print("GOOGLE_PLACES_API_KEY가 설정되지 않았습니다.")
+        return None
+        
     url = f"https://maps.googleapis.com/maps/api/place/details/json"
     params = {
         'place_id': place_id,
@@ -196,6 +246,10 @@ def search_food_image(place_name, categories=None):
 
 def search_places_by_keyword(lat, lng, radius, keyword, page=1):
     """카카오 Local API로 키워드 검색"""
+    if not KAKAO_REST_API_KEY:
+        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
+        return None
+        
     url = "https://dapi.kakao.com/v2/local/search/keyword.json"
     headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
     params = {
