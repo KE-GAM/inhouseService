@@ -1,0 +1,492 @@
+{% extends "sidebar_base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-map-marker-alt"></i> {{ location_id }} 장소 이슈 현황</h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('report.list_reports') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-list"></i> 전체 이슈
+    </a>
+    <button class="btn btn-sm btn-outline-primary" onclick="refreshActiveIssues()">
+      <i class="fas fa-sync-alt"></i> 새로고침
+    </button>
+  </div>
+</div>
+
+<!-- 진행 중인 이슈 현황 및 신고 -->
+<div class="row mb-4">
+  <div class="col-lg-8">
+    <!-- 진행 중인 이슈 -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-exclamation-triangle text-warning"></i> 진행 중인 이슈
+        </h5>
+        <span class="badge bg-primary" id="activeIssueCount">0</span>
+      </div>
+      <div class="card-body" id="activeIssuesContent">
+        <div class="text-center py-4">
+          <div class="spinner-border spinner-border-sm" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          이슈 정보를 불러오는 중...
+        </div>
+      </div>
+    </div>
+    
+    <!-- 최근 완료된 이슈 -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-check-circle text-success"></i> 최근 완료된 이슈 (최근 7일)
+        </h5>
+      </div>
+      <div class="card-body" id="recentCompletedIssues">
+        <div class="text-center py-3">
+          <div class="spinner-border spinner-border-sm" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          완료된 이슈를 불러오는 중...
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-plus-circle text-success"></i> 새 이슈 신고
+        </h5>
+      </div>
+      <div class="card-body text-center">
+        <p class="text-muted mb-3">
+          이 장소에서 시설이나 장비에 문제가 발생했나요?<br>
+          아래 버튼을 클릭하여 신고해주세요.
+        </p>
+        <a href="{{ form_url }}" target="_blank" class="btn btn-success btn-lg w-100">
+          <i class="fas fa-clipboard-list me-2"></i>이슈 신고하기
+        </a>
+        <small class="text-muted d-block mt-2">
+          신고 양식이 새 창에서 열립니다
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 이슈 상세 모달 -->
+<div class="modal fade" id="issueDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">이슈 상세 정보</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="issueDetailContent">
+        <!-- 동적으로 로드됨 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentLocationId = '{{ location_id }}';
+let currentUser = {{ user|tojson }};
+let isManager = currentUser.name && currentUser.name.includes('관리자');
+
+// 페이지 로드 시 데이터 로드
+document.addEventListener('DOMContentLoaded', function() {
+  loadActiveIssues();
+  loadRecentCompletedIssues();
+});
+
+// 진행 중인 이슈 로드
+async function loadActiveIssues() {
+  try {
+    const response = await fetch(`/api/places/${currentLocationId}/active`);
+    const data = await response.json();
+    
+    displayActiveIssues(data);
+  } catch (error) {
+    console.error('진행 중인 이슈 로드 실패:', error);
+    document.getElementById('activeIssuesContent').innerHTML = 
+      '<div class="alert alert-danger">이슈 정보를 불러오는데 실패했습니다.</div>';
+  }
+}
+
+// 진행 중인 이슈 표시
+function displayActiveIssues(data) {
+  const container = document.getElementById('activeIssuesContent');
+  const countBadge = document.getElementById('activeIssueCount');
+  
+  countBadge.textContent = data.active_count;
+  
+  if (data.issues.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-4">
+        <div class="text-success mb-3">
+          <i class="fas fa-check-circle fa-3x"></i>
+        </div>
+        <h5 class="text-success">현재 진행 중인 이슈가 없습니다!</h5>
+        <p class="text-muted">모든 시설이 정상적으로 작동하고 있습니다.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = data.issues.map(issue => `
+    <div class="border rounded p-3 mb-3 issue-card" onclick="showIssueDetail(${issue.id})">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center mb-2">
+            <h6 class="mb-0 me-3">${issue.title}</h6>
+            <span class="badge ${getStatusBadgeClass(issue.status)}">${issue.status_label}</span>
+            <span class="badge bg-light text-dark ms-2">${issue.type}</span>
+          </div>
+          <div class="text-muted small">
+            <i class="fas fa-clock me-1"></i>
+            접수: ${formatDate(issue.reported_at)}
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showIssueDetail(${issue.id})">
+          <i class="fas fa-eye"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 최근 완료된 이슈 로드
+async function loadRecentCompletedIssues() {
+  try {
+    // 최근 7일간 완료된 이슈 조회 (조치 완료 + 조치 불가)
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - 7);
+    
+    // DONE과 CANNOT_FIX 모두 조회하기 위해 별도로 호출
+    const doneParams = new URLSearchParams({
+      location_id: currentLocationId,
+      status: 'DONE',
+      from_date: fromDate.toISOString().split('T')[0]
+    });
+    
+    const cannotFixParams = new URLSearchParams({
+      location_id: currentLocationId,
+      status: 'CANNOT_FIX',
+      from_date: fromDate.toISOString().split('T')[0]
+    });
+    
+    const [doneResponse, cannotFixResponse] = await Promise.all([
+      fetch(`/api/issues?${doneParams}`),
+      fetch(`/api/issues?${cannotFixParams}`)
+    ]);
+    
+    const doneIssues = await doneResponse.json();
+    const cannotFixIssues = await cannotFixResponse.json();
+    
+    // 두 결과를 합치고 날짜순으로 정렬
+    const allIssues = [...doneIssues, ...cannotFixIssues];
+    allIssues.sort((a, b) => new Date(b.reported_at) - new Date(a.reported_at));
+    
+    displayRecentCompletedIssues(allIssues);
+  } catch (error) {
+    console.error('완료된 이슈 로드 실패:', error);
+    document.getElementById('recentCompletedIssues').innerHTML = 
+      '<div class="alert alert-danger">완료된 이슈 정보를 불러오는데 실패했습니다.</div>';
+  }
+}
+
+// 최근 완료된 이슈 표시
+function displayRecentCompletedIssues(issues) {
+  const container = document.getElementById('recentCompletedIssues');
+  
+  if (issues.length === 0) {
+    container.innerHTML = `
+      <div class="text-muted text-center py-3">
+        최근 7일간 완료된 이슈가 없습니다.
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = `
+    <div class="row">
+      ${issues.slice(0, 6).map(issue => `
+        <div class="col-md-6 mb-3">
+          <div class="card ${issue.status === 'DONE' ? 'border-success' : 'border-danger'} border-opacity-25">
+            <div class="card-body p-3">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="card-title mb-0">${issue.title}</h6>
+                <span class="badge ${issue.status === 'DONE' ? 'bg-success' : 'bg-danger'}">${issue.status_label}</span>
+              </div>
+              <div class="text-muted small">
+                <div><i class="fas fa-tag me-1"></i>${issue.type}</div>
+                <div><i class="fas fa-calendar me-1"></i>${formatDate(issue.reported_at)}</div>
+              </div>
+              <button class="btn btn-sm ${issue.status === 'DONE' ? 'btn-outline-success' : 'btn-outline-danger'} mt-2" onclick="showIssueDetail(${issue.id})">
+                <i class="fas fa-eye me-1"></i>상세보기
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    ${issues.length > 6 ? `
+      <div class="text-center mt-3">
+        <a href="${window.location.origin}/report" class="btn btn-outline-primary">
+          <i class="fas fa-list me-1"></i>모든 완료된 이슈 보기
+        </a>
+      </div>
+    ` : ''}
+  `;
+}
+
+// 이슈 상세 정보 표시
+async function showIssueDetail(issueId) {
+  try {
+    const response = await fetch(`/api/issues/${issueId}`);
+    const issue = await response.json();
+    
+    const modal = new bootstrap.Modal(document.getElementById('issueDetailModal'));
+    document.getElementById('issueDetailContent').innerHTML = renderIssueDetail(issue);
+    modal.show();
+  } catch (error) {
+    console.error('이슈 상세 로드 실패:', error);
+    showError('이슈 상세 정보를 불러오는데 실패했습니다.');
+  }
+}
+
+// 이슈 상세 렌더링 (list.html과 동일)
+function renderIssueDetail(issue) {
+  return `
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <strong>장소:</strong> ${issue.location_id}
+      </div>
+      <div class="col-md-6">
+        <strong>상태:</strong> <span class="badge ${getStatusBadgeClass(issue.status)}">${issue.status_label}</span>
+      </div>
+    </div>
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <strong>이슈명:</strong> ${issue.title}
+      </div>
+      <div class="col-md-6">
+        <strong>종류:</strong> ${issue.type}
+      </div>
+    </div>
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <strong>접수일:</strong> ${formatDateTime(issue.reported_at)}
+      </div>
+      <div class="col-md-6">
+        <strong>신고자:</strong> ${issue.reporter_email || '알 수 없음'}
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <strong>상세 내용:</strong>
+      <div class="border rounded p-3 mt-2 bg-light">
+        ${issue.description || '설명이 없습니다.'}
+      </div>
+    </div>
+    
+    ${issue.attachments && issue.attachments.length > 0 ? `
+      <div class="mb-3">
+        <strong>첨부 파일:</strong>
+        <div class="mt-2">
+          ${issue.attachments.map(att => `
+            <div class="d-flex align-items-center mb-1">
+              <i class="fas fa-paperclip text-primary me-2"></i>
+              <a href="${att.url}" target="_blank" class="text-decoration-none">${att.url}</a>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+    
+    ${isManager ? `
+      <div class="mb-3">
+        <strong>상태 관리:</strong>
+        <div class="mt-2">
+          <button class="btn btn-sm btn-warning me-2" onclick="updateStatus(${issue.id}, 'IN_PROGRESS')">조치 중</button>
+          <button class="btn btn-sm btn-success me-2" onclick="updateStatus(${issue.id}, 'DONE')">조치 완료</button>
+          <button class="btn btn-sm btn-danger" onclick="updateStatus(${issue.id}, 'CANNOT_FIX')">조치 불가</button>
+        </div>
+      </div>
+    ` : ''}
+    
+    <div class="mb-3">
+      <strong>시설 관리자 코멘트:</strong>
+      <div class="mt-2" style="max-height: 200px; overflow-y: auto;">
+        ${issue.comments && issue.comments.length > 0 ? 
+          issue.comments.map(comment => `
+            <div class="border rounded p-2 mb-2 ${comment.source === 'auto_merge' ? 'bg-warning bg-opacity-10' : 'bg-light'}">
+              <small class="text-muted">${comment.author || '알 수 없음'} • ${formatDateTime(comment.created_at)}</small>
+              <div class="mt-1">${comment.body}</div>
+            </div>
+          `).join('') : 
+          '<div class="text-muted">코멘트가 없습니다.</div>'
+        }
+      </div>
+      ${isManager ? `
+        <div class="mt-2">
+          <div class="input-group">
+            <textarea class="form-control" id="newComment${issue.id}" placeholder="코멘트를 입력하세요..."></textarea>
+            <button class="btn btn-primary" onclick="addComment(${issue.id})">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+    
+    ${issue.status_history && issue.status_history.length > 0 ? `
+      <div class="mb-3">
+        <strong>상태 이력:</strong>
+        <div class="mt-2" style="max-height: 150px; overflow-y: auto;">
+          ${issue.status_history.map(history => `
+            <div class="d-flex justify-content-between border-bottom pb-1 mb-1">
+              <span><span class="badge ${getStatusBadgeClass(history.status)}">${getStatusLabel(history.status)}</span></span>
+              <small class="text-muted">${history.actor || '시스템'} • ${formatDateTime(history.changed_at)}</small>
+            </div>
+            ${history.memo ? `<div class="text-muted small mb-2">${history.memo}</div>` : ''}
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+  `;
+}
+
+// 상태 업데이트
+async function updateStatus(issueId, newStatus) {
+  const memo = prompt('변경 사유를 입력하세요 (선택사항):');
+  if (memo === null) return; // 취소
+  
+  try {
+    const response = await fetch(`/api/issues/${issueId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        status: newStatus, 
+        actor: currentUser.name || '시설관리자',
+        memo: memo || ''
+      })
+    });
+    
+    if (response.ok) {
+      showSuccess('상태가 업데이트되었습니다.');
+      setTimeout(() => {
+        bootstrap.Modal.getInstance(document.getElementById('issueDetailModal')).hide();
+        loadActiveIssues();
+        loadRecentCompletedIssues();
+      }, 1000);
+    } else {
+      throw new Error('상태 업데이트 실패');
+    }
+  } catch (error) {
+    console.error('상태 업데이트 실패:', error);
+    showError('상태 업데이트에 실패했습니다.');
+  }
+}
+
+// 코멘트 추가
+async function addComment(issueId) {
+  const body = document.getElementById(`newComment${issueId}`).value.trim();
+  if (!body) {
+    alert('코멘트를 입력해주세요.');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/api/issues/${issueId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        body: body, 
+        author: currentUser.name || '시설관리자'
+      })
+    });
+    
+    if (response.ok) {
+      showSuccess('코멘트가 추가되었습니다.');
+      showIssueDetail(issueId); // 다시 로드
+    } else {
+      throw new Error('코멘트 추가 실패');
+    }
+  } catch (error) {
+    console.error('코멘트 추가 실패:', error);
+    showError('코멘트 추가에 실패했습니다.');
+  }
+}
+
+// 새로고침
+function refreshActiveIssues() {
+  loadActiveIssues();
+  loadRecentCompletedIssues();
+}
+
+// 유틸리티 함수들
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('ko-KR');
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('ko-KR');
+}
+
+function getStatusBadgeClass(status) {
+  const classes = {
+    'OPEN': 'bg-light text-dark',
+    'IN_PROGRESS': 'bg-warning',
+    'DONE': 'bg-success',
+    'CANNOT_FIX': 'bg-danger'
+  };
+  return classes[status] || 'bg-secondary';
+}
+
+function getStatusLabel(status) {
+  const labels = {
+    'OPEN': '접수',
+    'IN_PROGRESS': '조치 중',
+    'DONE': '조치 완료',
+    'CANNOT_FIX': '조치 불가'
+  };
+  return labels[status] || status;
+}
+
+function showSuccess(message) {
+  // 임시 알림 (실제로는 toast 라이브러리 사용 권장)
+  alert('✅ ' + message);
+}
+
+function showError(message) {
+  // 임시 알림 (실제로는 toast 라이브러리 사용 권장)
+  alert('❌ ' + message);
+}
+</script>
+
+<style>
+.issue-card:hover {
+  background-color: rgba(0,123,255,0.05);
+  cursor: pointer;
+  transform: translateY(-1px);
+  transition: all 0.2s ease-in-out;
+}
+
+.card {
+  transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#issueDetailContent {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+</style>
+{% endblock %}

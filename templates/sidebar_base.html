@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ title or 'Inhouse Services' }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --sidebar-bg: #111;
+      --sidebar-text: #fff;
+      --sidebar-border: #333;
+      --sidebar-hover: #2f2f2f;
+      --sidebar-footer: #cfcfcf;
+      --content-bg: #f8f9fa;
+      --content-text: #333;
+      --card-bg: #fff;
+      --card-border: #dee2e6;
+      --text-muted: #6c757d;
+    }
+
+    [data-theme="dark"] {
+      --sidebar-bg: #0d1117;
+      --sidebar-text: #f0f6fc;
+      --sidebar-border: #21262d;
+      --sidebar-hover: #161b22;
+      --sidebar-footer: #8b949e;
+      --content-bg: #1b1e1f;
+      --content-text: #f0f6fc;
+      --card-bg: #181a1b;
+      --card-border: #30363d;
+      --text-muted: #8b949e;
+    }
+
+    html, body { 
+      height: 100%; 
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    .layout { 
+      display: flex; 
+      height: 100vh; 
+    }
+    
+    .sidebar { 
+      width: 240px; 
+      background: var(--sidebar-bg); 
+      color: var(--sidebar-text); 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: space-between; 
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    .logo { 
+      padding: 16px 20px; 
+      font-weight: 700; 
+      border-bottom: 1px solid var(--sidebar-border); 
+    }
+    
+    .menu { 
+      padding: 8px 0; 
+    }
+    
+    .menu a { 
+      display: block; 
+      padding: 12px 20px; 
+      color: #ddd; 
+      text-decoration: none; 
+      border-bottom: 1px solid #222; 
+      transition: all 0.3s ease;
+    }
+    
+    .menu a.active, .menu a:hover { 
+      background: var(--sidebar-hover); 
+      color: var(--sidebar-text); 
+    }
+    
+    .footer { 
+      padding: 14px 20px; 
+      font-size: 12px; 
+      border-top: 1px solid var(--sidebar-border); 
+      color: var(--sidebar-footer); 
+    }
+    
+    .content { 
+      flex: 1; 
+      padding: 28px; 
+      background: var(--content-bg); 
+      color: var(--content-text);
+      overflow: auto; 
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* 다크모드에서 카드 스타일 */
+    [data-theme="dark"] .card {
+      background-color: var(--card-bg);
+      border-color: var(--card-border);
+      color: var(--content-text);
+    }
+
+    [data-theme="dark"] .text-muted {
+      color: var(--text-muted) !important;
+    }
+
+    [data-theme="dark"] .bg-light {
+      background-color: var(--card-bg) !important;
+    }
+
+    /* 테마 토글 버튼 스타일 */
+    .theme-toggle .btn {
+      transition: all 0.3s ease;
+    }
+
+    .theme-toggle .btn:hover {
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- 좌측 사이드바 -->
+  <aside class="sidebar">
+    <div>
+      <div class="logo">NotaAI</div>
+      <nav class="menu">
+        <!-- 기존 서비스: 기능 없이 텍스트 링크(또는 #) -->
+        <a href="#" aria-disabled="true">{{ t('sidebar.visitor_registration') }}</a>
+        <a href="#" aria-disabled="true">{{ t('sidebar.parking_settlement') }}</a>
+        <a href="#" aria-disabled="true">{{ t('sidebar.expense_calculator') }}</a>
+        <a href="#" aria-disabled="true">{{ t('sidebar.nota_map') }}</a>
+        <a href="#" aria-disabled="true">{{ t('sidebar.nota_daily_brief') }}</a>
+        <a href="#" aria-disabled="true">{{ t('sidebar.slack_stats') }}</a>
+        <a href="#" aria-disabled="true">{{ t('sidebar.inhouse_stats') }}</a>
+
+        <!-- 여기부터 내 서비스 -->
+        <a href="{{ url_for('noonpick.lunch_home') }}" class="{{ 'active' if active=='noonpick' else '' }}">{{ t('services.noonpick') }}</a>
+        <a href="{{ url_for('booker.booker_home') }}" class="{{ 'active' if active=='booker' else '' }}">{{ t('services.booker') }}</a>
+        <a href="{{ url_for('calendar.calendar_home') }}" class="{{ 'active' if active=='calendar' else '' }}">{{ t('services.calendar') }}</a>
+        <a href="{{ url_for('report.list_reports') }}" class="{{ 'active' if active=='report' else '' }}">{{ t('services.report') }}</a>
+        <a href="{{ url_for('guidebook.guidebook_home') }}" class="{{ 'active' if active=='guidebook' else '' }}">{{ t('services.guidebook') }}</a>
+        {% if user.is_admin %}
+        <a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if active=='admin' else '' }}">{{ t('services.admin_monitoring') }}</a>
+        {% endif %}
+      </nav>
+    </div>
+    <div class="footer">
+      <!-- 언어 전환 버튼 -->
+      <div class="language-toggle mb-3">
+        <button id="languageToggle" class="btn btn-sm btn-outline-light w-100">
+          <i class="bi bi-translate me-2"></i>
+          <span id="languageText">{{ 'English' if lang == 'ko' else '한국어' }}</span>
+        </button>
+      </div>
+      
+      <!-- 다크/라이트 모드 토글 버튼 -->
+      <div class="theme-toggle mb-3">
+        <button id="themeToggle" class="btn btn-sm btn-outline-light w-100" onclick="toggleTheme()">
+          <i id="themeIcon" class="bi bi-moon-fill me-2"></i>
+          <span id="themeText">{{ t('common.dark_mode') }}</span>
+        </button>
+      </div>
+      <div>{{ t('sidebar.current_time') }}</div>
+      <div>{{ user.name if user.name else user.email }}</div>
+      <div style="font-size: 10px; color: #999;">{{ user.org_name if user.org_name else '' }} {{ user.title if user.title else '' }}</div>
+    </div>
+  </aside>
+
+  
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+<!-- Bootstrap JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+<script>
+// 언어 토글 기능
+function toggleLanguage() {
+  const currentLang = '{{ lang }}';
+  const newLang = currentLang === 'ko' ? 'en' : 'ko';
+  
+  // 언어 설정 쿠키 업데이트 후 리다이렉트
+  window.location.href = `/set_language/${newLang}`;
+}
+
+// 페이지 로드 시 이벤트 리스너 설정
+document.addEventListener('DOMContentLoaded', function() {
+  // 언어 전환 버튼에 이벤트 리스너 추가
+  const langButton = document.getElementById('languageToggle');
+  if (langButton) {
+    langButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      toggleLanguage();
+    });
+  }
+});
+
+// 테마 토글 기능
+function toggleTheme() {
+  const body = document.body;
+  const themeIcon = document.getElementById('themeIcon');
+  const themeText = document.getElementById('themeText');
+  
+  if (body.getAttribute('data-theme') === 'dark') {
+    // 라이트 모드로 변경
+    body.removeAttribute('data-theme');
+    themeIcon.className = 'bi bi-moon-fill me-2';
+    themeText.textContent = '{{ t("common.dark_mode") }}';
+    localStorage.setItem('theme', 'light');
+  } else {
+    // 다크 모드로 변경
+    body.setAttribute('data-theme', 'dark');
+    themeIcon.className = 'bi bi-sun-fill me-2';
+    themeText.textContent = '{{ t("common.light_mode") }}';
+    localStorage.setItem('theme', 'dark');
+  }
+  
+  // 커스텀 이벤트 발생시켜서 React 컴포넌트에 알림
+  window.dispatchEvent(new CustomEvent('themeChanged'));
+}
+
+// 페이지 로드 시 저장된 테마 적용
+document.addEventListener('DOMContentLoaded', function() {
+  const savedTheme = localStorage.getItem('theme');
+  const body = document.body;
+  const themeIcon = document.getElementById('themeIcon');
+  const themeText = document.getElementById('themeText');
+  
+  if (savedTheme === 'dark') {
+    body.setAttribute('data-theme', 'dark');
+    themeIcon.className = 'bi bi-sun-fill me-2';
+    themeText.textContent = '{{ t("common.light_mode") }}';
+  } else {
+    body.removeAttribute('data-theme');
+    themeIcon.className = 'bi bi-moon-fill me-2';
+    themeText.textContent = '{{ t("common.dark_mode") }}';
+  }
+});
+</script>
+</body>
+</html>

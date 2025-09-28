@@ -1,0 +1,32 @@
+{
+  "employees_basic.json": {
+    "employee_id": "string (unique)",
+    "name": "string (Korean)",
+    "gender": "Male/Female",
+    "dob": "YYYY-MM-DD",
+    "org_code": "string (e.g., ENG-BE)",
+    "org_name": "string (localized name)",
+    "title": "string",
+    "hire_date": "YYYY-MM-DD",
+    "days_employed": "int (as of 2025-09-21)",
+    "annual_leave_quota": "int (15 or 20 based on tenure)",
+    "annual_leave_used": "int",
+    "annual_leave_remaining": "int",
+    "email": "string",
+    "location": "Seoul HQ/Remote/Busan Office",
+    "employment_type": "string",
+    "is_active": "boolean"
+  },
+  "vacations_2025-09.json": {
+    "employee_id": "string (references employees_basic.employee_id)",
+    "name": "string",
+    "org_code": "string",
+    "org_name": "string",
+    "type": "PTO/HALF/SICK",
+    "start_at": "ISO8601 with +09:00",
+    "end_at": "ISO8601 with +09:00",
+    "all_day": "boolean",
+    "status": "ACTIVE/CANCELLED",
+    "updated_at": "ISO8601 with +09:00"
+  }
+}

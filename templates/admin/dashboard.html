@@ -1,0 +1,496 @@
+{% extends "sidebar_base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">📊 관리자 모니터링 대시보드</h2>
+      <p class="text-muted">5개 인하우스 서비스의 핵심 지표를 모니터링합니다</p>
+    </div>
+    <div class="text-muted">
+      <small id="lastUpdated"></small>
+    </div>
+  </div>
+
+  <!-- 상단 컨트롤 바 -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-2">
+          <label for="serviceSelect" class="form-label">서비스 선택</label>
+          <select class="form-select" id="serviceSelect">
+            <option value="booker">Desk & Room Booker</option>
+            <option value="calendar">Calendar HUB</option>
+            <option value="reportit">Report-It</option>
+            <option value="faq">Nota Guidebook</option>
+            <option value="noonpick">NoonPick</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="fromDate" class="form-label">시작일시</label>
+          <input type="datetime-local" class="form-control" id="fromDate">
+        </div>
+        <div class="col-md-3">
+          <label for="toDate" class="form-label">종료일시</label>
+          <input type="datetime-local" class="form-control" id="toDate">
+        </div>
+        <div class="col-md-2">
+          <label for="bucketType" class="form-label">버킷 타입</label>
+          <select class="form-select" id="bucketType">
+            <option value="auto">자동 판정</option>
+            <option value="hour">시간별</option>
+            <option value="day">일별</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" id="loadMetrics">조회</button>
+        </div>
+      </div>
+      
+      <!-- 지표 토글 -->
+      <div class="mt-3">
+        <label class="form-label">표시할 지표</label>
+        <div id="metricsToggle" class="d-flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 로딩 상태 -->
+  <div id="loading" class="text-center py-5" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">로딩 중...</span>
+    </div>
+    <p class="mt-2">데이터를 불러오는 중...</p>
+  </div>
+
+  <!-- KPI 카드 -->
+  <div id="kpiCards" class="row mb-4" style="display: none;">
+    <!-- 동적으로 생성됨 -->
+  </div>
+
+  <!-- 차트 영역 -->
+  <div id="chartArea" class="row mb-4" style="display: none;">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">시계열 차트</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="metricsChart" width="400" height="150"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 표 데이터 -->
+  <div id="tableArea" class="row" style="display: none;">
+    <!-- 동적으로 생성됨 -->
+  </div>
+
+  <!-- 에러 메시지 -->
+  <div id="errorMessage" class="alert alert-danger" style="display: none;">
+    <h6>오류 발생</h6>
+    <p id="errorText"></p>
+  </div>
+</div>
+
+<!-- Chart.js with date adapter -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<script>
+// 전역 변수
+let currentChart = null;
+let currentService = 'booker';
+let availableMetrics = {};
+
+// 서비스별 지표 정의
+const serviceMetrics = {
+  booker: {
+    success_rate: '예약 성공률',
+    overlap_rate: '중복시도율',
+    occupancy: '점유율'
+  },
+  calendar: {
+    dau: 'DAU',
+    tab_share_my: 'My 탭 비중',
+    tab_share_vacation: 'Vacation 탭 비중',
+    tab_share_official: 'Official 탭 비중'
+  },
+  reportit: {
+    created: '신규 이슈',
+    resolved: '해결된 이슈',
+    resolve_rate: '해결율',
+    ttr_avg: '평균 TTR(분)',
+    ttr_p50: 'TTR P50(분)'
+  },
+  faq: {
+    zero_rate: '검색 0건 비율'
+  },
+  noonpick: {
+    select_rate: '선택률',
+    dup7: '7일 중복률'
+  }
+};
+
+// 초기화
+document.addEventListener('DOMContentLoaded', function() {
+  initializeDateInputs();
+  setupEventListeners();
+  updateMetricsToggle();
+  initializeChart();
+  loadDefaultMetrics();
+});
+
+function initializeChart() {
+  // 차트 영역 초기화
+  const chartArea = document.getElementById('chartArea');
+  chartArea.style.display = 'none';
+  
+  // 기존 차트가 있다면 파괴
+  if (currentChart) {
+    currentChart.destroy();
+    currentChart = null;
+  }
+}
+
+function initializeDateInputs() {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  document.getElementById('toDate').value = formatDateTimeLocal(now);
+  document.getElementById('fromDate').value = formatDateTimeLocal(weekAgo);
+}
+
+function formatDateTimeLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function setupEventListeners() {
+  document.getElementById('serviceSelect').addEventListener('change', function() {
+    currentService = this.value;
+    updateMetricsToggle();
+  });
+  
+  document.getElementById('loadMetrics').addEventListener('click', loadMetrics);
+}
+
+function updateMetricsToggle() {
+  const metricsToggleDiv = document.getElementById('metricsToggle');
+  metricsToggleDiv.innerHTML = '';
+  
+  const metrics = serviceMetrics[currentService] || {};
+  
+  Object.keys(metrics).forEach(metricKey => {
+    const label = document.createElement('label');
+    label.className = 'form-check-label me-3';
+    label.innerHTML = `
+      <input class="form-check-input me-1" type="checkbox" value="${metricKey}" checked>
+      ${metrics[metricKey]}
+    `;
+    metricsToggleDiv.appendChild(label);
+  });
+}
+
+function getSelectedMetrics() {
+  const checkboxes = document.querySelectorAll('#metricsToggle input[type="checkbox"]:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function loadDefaultMetrics() {
+  loadMetrics();
+}
+
+async function loadMetrics() {
+  const service = document.getElementById('serviceSelect').value;
+  const fromDate = document.getElementById('fromDate').value;
+  const toDate = document.getElementById('toDate').value;
+  const bucketType = document.getElementById('bucketType').value;
+  const selectedMetrics = getSelectedMetrics();
+  
+  // 로딩 상태 표시
+  showLoading();
+  hideError();
+  
+  try {
+    const params = new URLSearchParams({
+      service: service,
+      from: fromDate.replace('T', ' '),
+      to: toDate.replace('T', ' '),
+      include: selectedMetrics.join(',')
+    });
+    
+    if (bucketType !== 'auto') {
+      params.append('bucket', bucketType);
+    }
+    
+    const response = await fetch(`/admin/api/metrics?${params}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    renderMetrics(data);
+    
+  } catch (error) {
+    console.error('Error loading metrics:', error);
+    showError(error.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderMetrics(data) {
+  renderKPICards(data.kpis);
+  renderChart(data.series, data.range.bucket);
+  renderTables(data.tables);
+  updateLastUpdated(data.last_updated_kst);
+}
+
+function renderKPICards(kpis) {
+  const container = document.getElementById('kpiCards');
+  container.innerHTML = '';
+  
+  Object.keys(kpis).forEach(metricKey => {
+    const metric = kpis[metricKey];
+    const metricName = serviceMetrics[currentService][metricKey] || metricKey;
+    
+    const col = document.createElement('div');
+    col.className = 'col-md-3 mb-3';
+    
+    let displayValue = metric.value;
+    if (metricKey.includes('rate') || metricKey.includes('dup')) {
+      displayValue = (metric.value * 100).toFixed(1) + '%';
+    } else if (Number.isInteger(metric.value)) {
+      displayValue = metric.value.toLocaleString();
+    } else {
+      displayValue = metric.value.toFixed(1);
+    }
+    
+    col.innerHTML = `
+      <div class="card">
+        <div class="card-body text-center">
+          <h5 class="card-title text-muted">${metricName}</h5>
+          <h2 class="card-text text-primary">${displayValue}</h2>
+        </div>
+      </div>
+    `;
+    
+    container.appendChild(col);
+  });
+  
+  container.style.display = 'flex';
+}
+
+function renderChart(series, bucketType) {
+  const canvas = document.getElementById('metricsChart');
+  
+  // 기존 차트 파괴
+  if (currentChart) {
+    currentChart.destroy();
+    currentChart = null;
+  }
+  
+  // Canvas 초기화
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  const datasets = [];
+  const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d'];
+  let colorIndex = 0;
+  
+  Object.keys(series).forEach(metricKey => {
+    const metricName = serviceMetrics[currentService][metricKey] || metricKey;
+    const data = series[metricKey];
+    
+    datasets.push({
+      label: metricName,
+      data: data.map(point => ({ x: point[0], y: point[1] })),
+      borderColor: colors[colorIndex % colors.length],
+      backgroundColor: colors[colorIndex % colors.length] + '20',
+      fill: false,
+      tension: 0.1
+    });
+    
+    colorIndex++;
+  });
+  
+  // Chart.js 설정
+  const chartConfig = {
+    type: 'line',
+    data: { datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: bucketType === 'hour' ? 'hour' : 'day'
+          },
+          title: {
+            display: true,
+            text: bucketType === 'hour' ? '시간' : '날짜'
+          },
+          ticks: {
+            maxTicksLimit: 10
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: '값'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        }
+      }
+    }
+  };
+  
+  // 차트 생성
+  try {
+    currentChart = new Chart(ctx, chartConfig);
+    document.getElementById('chartArea').style.display = 'block';
+  } catch (error) {
+    console.error('Chart creation error:', error);
+    console.log('Falling back to category axis...');
+    
+    // Fallback: 시간 축 대신 카테고리 축 사용
+    chartConfig.options.scales.x = {
+      type: 'category',
+      title: {
+        display: true,
+        text: bucketType === 'hour' ? '시간' : '날짜'
+      },
+      ticks: {
+        maxTicksLimit: 10
+      }
+    };
+    
+    // 데이터를 카테고리 형식으로 변환
+    chartConfig.data.datasets.forEach(dataset => {
+      dataset.data = dataset.data.map(point => ({
+        x: point.x, // 날짜 문자열을 그대로 사용
+        y: point.y
+      }));
+    });
+    
+    try {
+      currentChart = new Chart(ctx, chartConfig);
+      document.getElementById('chartArea').style.display = 'block';
+    } catch (fallbackError) {
+      console.error('Fallback chart creation error:', fallbackError);
+      showError('차트 생성 중 오류가 발생했습니다: ' + error.message);
+    }
+  }
+}
+
+function renderTables(tables) {
+  const container = document.getElementById('tableArea');
+  container.innerHTML = '';
+  
+  if (!tables || Object.keys(tables).length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  Object.keys(tables).forEach(tableName => {
+    const tableData = tables[tableName];
+    
+    const col = document.createElement('div');
+    col.className = 'col-md-6 mb-3';
+    
+    let tableTitle = tableName;
+    if (tableName === 'top_docs') tableTitle = 'Top 문서';
+    else if (tableName === 'zero_queries') tableTitle = '0건 검색 쿼리';
+    else if (tableName === 'top_menus') tableTitle = 'Top 메뉴';
+    
+    let tableHtml = `
+      <div class="card">
+        <div class="card-header">
+          <h6 class="card-title mb-0">${tableTitle}</h6>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th class="text-end">수량</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    if (Array.isArray(tableData) && tableData.length > 0) {
+      tableData.forEach(([item, count]) => {
+        tableHtml += `
+          <tr>
+            <td>${item}</td>
+            <td class="text-end">${count.toLocaleString()}</td>
+          </tr>
+        `;
+      });
+    } else {
+      tableHtml += '<tr><td colspan="2" class="text-center text-muted">데이터 없음</td></tr>';
+    }
+    
+    tableHtml += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    
+    col.innerHTML = tableHtml;
+    container.appendChild(col);
+  });
+  
+  container.style.display = 'flex';
+}
+
+function updateLastUpdated(timestamp) {
+  document.getElementById('lastUpdated').textContent = `마지막 업데이트: ${timestamp}`;
+}
+
+function showLoading() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('kpiCards').style.display = 'none';
+  document.getElementById('chartArea').style.display = 'none';
+  document.getElementById('tableArea').style.display = 'none';
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function showError(message) {
+  document.getElementById('errorText').textContent = message;
+  document.getElementById('errorMessage').style.display = 'block';
+  document.getElementById('kpiCards').style.display = 'none';
+  document.getElementById('chartArea').style.display = 'none';
+  document.getElementById('tableArea').style.display = 'none';
+}
+
+function hideError() {
+  document.getElementById('errorMessage').style.display = 'none';
+}
+</script>
+{% endblock %}

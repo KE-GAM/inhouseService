@@ -1,0 +1,1461 @@
+{% extends "sidebar_base.html" %}
+
+{% block content %}
+<div class="container-fluid p-0">
+  <!-- Calendar Hub Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">📅 {{ t('services.calendar') }}</h2>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm" onclick="refreshCalendar()">
+        🔄 {{ t('common.refresh') }}
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="showNewEventModal()" id="newEventBtn">
+        ➕ {{ t('calendar.new_event', 'New Event') }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <ul class="nav nav-tabs mb-3" id="calendarTabs">
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if tab == 'my' else '' }}" 
+         href="#" onclick="switchTab('my')">{{ t('calendar.my_calendar') }}</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if tab == 'vacation' else '' }}" 
+         href="#" onclick="switchTab('vacation')">{{ t('calendar.vacation_calendar') }}</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if tab == 'official' else '' }}" 
+         href="#" onclick="switchTab('official')">{{ t('calendar.official_events') }}</a>
+    </li>
+  </ul>
+
+  <!-- Primary Navigation Bar -->
+  <div class="row mb-3">
+    <div class="col-md-8">
+      <div class="d-flex align-items-center gap-3">
+        <!-- Date Navigation -->
+        <div class="btn-group">
+          <button class="btn btn-outline-secondary" onclick="navigateDate('prev')">‹</button>
+          <button class="btn btn-outline-secondary" onclick="navigateDate('today')">{{ t('calendar.today') }}</button>
+          <button class="btn btn-outline-secondary" onclick="navigateDate('next')">›</button>
+        </div>
+        
+        <!-- Date Picker -->
+        <input type="date" class="form-control" style="width: 150px;" 
+               value="{{ date }}" onchange="navigateToDate(this.value)" id="datePicker">
+        
+        <!-- View Selector -->
+        <div class="btn-group">
+          <button class="btn {{ 'btn-primary' if view == 'month' else 'btn-outline-secondary' }}" 
+                  onclick="switchView('month')">{{ t('calendar.month') }}</button>
+          <button class="btn {{ 'btn-primary' if view == 'week' else 'btn-outline-secondary' }}" 
+                  onclick="switchView('week')">{{ t('calendar.week') }}</button>
+          <button class="btn {{ 'btn-primary' if view == 'day' else 'btn-outline-secondary' }}" 
+                  onclick="switchView('day')">{{ t('calendar.day') }}</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Current Date Display -->
+    <div class="col-md-4 text-end">
+      <h5 class="mb-0 text-muted" id="currentDateDisplay">
+        {% if view == 'week' %}
+          {{ start_date.strftime('%Y년 %m월 %d일') }} - {{ end_date.strftime('%m월 %d일') }}
+        {% elif view == 'month' %}
+          {{ current_date.strftime('%Y년 %m월') }}
+        {% else %}
+          {{ current_date.strftime('%Y년 %m월 %d일') }}
+        {% endif %}
+      </h5>
+    </div>
+  </div>
+
+  <!-- Context Filter Bar (Vacation 탭에서만 표시) -->
+  <div class="row mb-3 {{ 'd-none' if tab != 'vacation' else '' }}" id="contextFilterBar">
+    <div class="col-md-6">
+      <label class="form-label">{{ t('calendar.team_selection') }}:</label>
+      <select class="form-select" onchange="changeOrg(this.value)" id="orgSelector">
+        <option value="ALL">{{ t('calendar.all_teams') }}</option>
+        {% for org_item in orgs %}
+          <option value="{{ org_item.org_code }}" {{ 'selected' if org_item.org_code == org else '' }}>
+            {{ org_item.org_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6 d-flex align-items-end">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" 
+               {{ 'checked' if show_birthdays else '' }} 
+               onchange="toggleBirthdays(this.checked)" id="birthdayToggle">
+        <label class="form-check-label" for="birthdayToggle">
+          🎂 {{ t('calendar.show_birthdays') }}
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendar Display Area -->
+  <div class="card">
+    <div class="card-body p-2">
+      <!-- Loading State -->
+      <div class="text-center py-5 d-none" id="loadingState">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">{{ t('common.loading') }}</span>
+        </div>
+        <p class="mt-2 text-muted">{{ t('calendar.loading_calendar') }}</p>
+      </div>
+
+      <!-- Calendar Grid -->
+      <div id="calendarGrid" class="calendar-container">
+        <!-- 동적으로 JavaScript에서 생성 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal fade" id="eventDetailModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ t('calendar.event_detail') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="eventDetailBody">
+        <!-- 동적 내용 -->
+      </div>
+      <div class="modal-footer" id="eventDetailFooter">
+        <!-- 동적 버튼들 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Event Modal -->
+<div class="modal fade" id="newEventModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ t('calendar.new_event_creation') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="newEventForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">{{ t('calendar.title') }}</label>
+            <input type="text" class="form-control" name="title" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{{ t('calendar.description') }}</label>
+            <textarea class="form-control" name="description" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="allDay" id="allDayCheck" onchange="toggleAllDay()">
+              <label class="form-check-label" for="allDayCheck">{{ t('calendar.all_day_event') }}</label>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">{{ t('calendar.start_date') }}</label>
+              <input type="datetime-local" class="form-control" name="start" id="startInput" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t('calendar.end_date') }}</label>
+              <input type="datetime-local" class="form-control" name="end" id="endInput" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{{ t('calendar.location') }}</label>
+            <input type="text" class="form-control" name="location">
+          </div>
+          <input type="hidden" name="eventType" id="eventTypeInput">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('calendar.cancel') }}</button>
+          <button type="submit" class="btn btn-primary">{{ t('calendar.create') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<style>
+.calendar-container {
+  min-height: 400px;
+}
+
+.calendar-grid {
+  display: grid;
+  gap: 1px;
+  background-color: #dee2e6;
+  border: 1px solid #dee2e6;
+}
+
+.calendar-grid.week-view {
+  grid-template-columns: 120px repeat(7, 1fr);
+  grid-template-rows: 40px repeat(24, 1fr);
+}
+
+.calendar-grid.month-view {
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: 40px repeat(6, 1fr);
+}
+
+.calendar-grid.day-view {
+  grid-template-columns: 120px 1fr;
+  grid-template-rows: 40px repeat(24, 1fr);
+}
+
+.calendar-cell {
+  background-color: white;
+  padding: 4px;
+  min-height: 40px;
+  position: relative;
+  border: 1px solid #e9ecef;
+}
+
+.calendar-header {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-slot {
+  background-color: #f8f9fa;
+  text-align: center;
+  font-size: 0.8em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.event-item {
+  background-color: #007bff;
+  color: white;
+  padding: 2px 6px;
+  margin: 1px 0;
+  border-radius: 3px;
+  font-size: 0.8em;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-item.vacation {
+  background-color: #28a745;
+}
+
+.event-item.official {
+  background-color: #dc3545;
+}
+
+.event-item.birthday {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.event-item.subscribed {
+  border-left: 4px solid #17a2b8;
+}
+
+.event-item.cancelled {
+  background-color: #6c757d;
+  text-decoration: line-through;
+}
+
+.today {
+  background-color: #fff3cd !important;
+}
+
+.other-month {
+  color: #6c757d;
+  background-color: #f8f9fa;
+}
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1050;
+}
+
+/* 다크모드 스타일 */
+[data-theme="dark"] .nav-tabs .nav-link {
+  color: #f0f6fc !important;
+  background-color: transparent !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+  background-color: #181a1b !important;
+  border-color: #30363d #30363d #181a1b !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+  border-color: #30363d #30363d #181a1b !important;
+  background-color: #181a1b !important;
+}
+
+[data-theme="dark"] .calendar-grid {
+  background-color: #30363d !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .calendar-cell {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .calendar-header {
+  background-color: #1b1e1f !important;
+  color: #f0f6fc !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .time-slot {
+  background-color: #1b1e1f !important;
+  color: #f0f6fc !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .today {
+  background-color: #2d4a5c !important;
+}
+
+[data-theme="dark"] .other-month {
+  color: #8b949e !important;
+  background-color: #1b1e1f !important;
+}
+
+[data-theme="dark"] .form-select {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .form-select:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .form-check-input {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .form-check-input:checked {
+  background-color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .form-check-label {
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+  color: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-primary {
+  color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .btn-outline-primary:hover {
+  background-color: #0d6efd !important;
+  border-color: #0d6efd !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-danger {
+  color: #dc3545 !important;
+  border-color: #dc3545 !important;
+}
+
+[data-theme="dark"] .btn-outline-danger:hover {
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .modal-content {
+  background-color: #181a1b !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .modal-header {
+  border-bottom-color: #30363d !important;
+}
+
+[data-theme="dark"] .modal-footer {
+  border-top-color: #30363d !important;
+}
+
+[data-theme="dark"] .form-control {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .form-control:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+</style>
+
+<script>
+// Global variables
+let currentTab = '{{ tab }}';
+let currentView = '{{ view }}';
+let currentDate = '{{ date }}';
+let currentOrg = '{{ org }}';
+let showBirthdays = {{ 'true' if show_birthdays else 'false' }};
+let calendarEvents = [];
+let userInfo = {{ user | tojson }};
+
+// Helper function to parse date consistently
+function parseEventDate(dateString) {
+  // All dates are now timezone-free, parse as local time
+  return new Date(dateString);
+}
+
+// Initialize calendar on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadCalendarEvents();
+  updateNewEventButton();
+});
+
+// Tab switching
+function switchTab(tab) {
+  currentTab = tab;
+  updateURL();
+  loadCalendarEvents();
+  updateNewEventButton();
+  
+  // Show/hide context filter bar
+  const filterBar = document.getElementById('contextFilterBar');
+  if (tab === 'vacation') {
+    filterBar.classList.remove('d-none');
+  } else {
+    filterBar.classList.add('d-none');
+  }
+  
+  // Update tab active state
+  document.querySelectorAll('#calendarTabs .nav-link').forEach(link => {
+    link.classList.remove('active');
+  });
+  event.target.classList.add('active');
+}
+
+// View switching
+function switchView(view) {
+  currentView = view;
+  updateURL();
+  loadCalendarEvents();
+  
+  // Update view button active state
+  document.querySelectorAll('.btn-group .btn').forEach(btn => {
+    if (btn.onclick && btn.onclick.toString().includes('switchView')) {
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-outline-secondary');
+    }
+  });
+  event.target.classList.remove('btn-outline-secondary');
+  event.target.classList.add('btn-primary');
+}
+
+// Date navigation
+function navigateDate(direction) {
+  const currentDateObj = new Date(currentDate);
+  
+  if (direction === 'prev') {
+    if (currentView === 'month') {
+      currentDateObj.setMonth(currentDateObj.getMonth() - 1);
+    } else if (currentView === 'week') {
+      currentDateObj.setDate(currentDateObj.getDate() - 7);
+    } else {
+      currentDateObj.setDate(currentDateObj.getDate() - 1);
+    }
+  } else if (direction === 'next') {
+    if (currentView === 'month') {
+      currentDateObj.setMonth(currentDateObj.getMonth() + 1);
+    } else if (currentView === 'week') {
+      currentDateObj.setDate(currentDateObj.getDate() + 7);
+    } else {
+      currentDateObj.setDate(currentDateObj.getDate() + 1);
+    }
+  } else if (direction === 'today') {
+    currentDate = new Date().toISOString().split('T')[0];
+    document.getElementById('datePicker').value = currentDate;
+    updateURL();
+    loadCalendarEvents();
+    return;
+  }
+  
+  currentDate = currentDateObj.toISOString().split('T')[0];
+  document.getElementById('datePicker').value = currentDate;
+  updateURL();
+  loadCalendarEvents();
+}
+
+function navigateToDate(date) {
+  currentDate = date;
+  updateURL();
+  loadCalendarEvents();
+}
+
+// Organization and filter changes
+function changeOrg(orgCode) {
+  currentOrg = orgCode;
+  updateURL();
+  loadCalendarEvents();
+}
+
+function toggleBirthdays(checked) {
+  showBirthdays = checked;
+  updateURL();
+  loadCalendarEvents();
+}
+
+// Update URL with current state
+function updateURL() {
+  const params = new URLSearchParams();
+  params.set('tab', currentTab);
+  params.set('view', currentView);
+  params.set('date', currentDate);
+  if (currentTab === 'vacation') {
+    params.set('org', currentOrg);
+    params.set('showBirthdays', showBirthdays ? '1' : '0');
+  }
+  
+  const newURL = window.location.pathname + '?' + params.toString();
+  window.history.replaceState({}, '', newURL);
+}
+
+// Load calendar events
+function loadCalendarEvents() {
+  const loadingState = document.getElementById('loadingState');
+  const calendarGrid = document.getElementById('calendarGrid');
+  
+  loadingState.classList.remove('d-none');
+  calendarGrid.innerHTML = '';
+  
+  // Calculate date range
+  const dateObj = new Date(currentDate);
+  let startDate, endDate;
+  
+  if (currentView === 'month') {
+    startDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1);
+    endDate = new Date(dateObj.getFullYear(), dateObj.getMonth() + 1, 0);
+  } else if (currentView === 'week') {
+    const dayOfWeek = dateObj.getDay();
+    const diff = dateObj.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    startDate = new Date(dateObj.setDate(diff));
+    endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+  } else {
+    startDate = new Date(dateObj);
+    endDate = new Date(dateObj);
+  }
+  
+  // API call
+  const params = new URLSearchParams({
+    tab: currentTab,
+    start: startDate.toISOString().split('T')[0],
+    end: endDate.toISOString().split('T')[0]
+  });
+  
+  if (currentTab === 'vacation') {
+    params.set('org', currentOrg);
+    params.set('showBirthdays', showBirthdays ? '1' : '0');
+  }
+  
+  // Add timestamp and random number to prevent caching
+  const timestamp = new Date().getTime();
+  const random = Math.random().toString(36).substring(7);
+  fetch(`/api/calendar/events?${params}&_t=${timestamp}&_r=${random}`)
+    .then(response => response.json())
+    .then(events => {
+      calendarEvents = events;
+      renderCalendar();
+      loadingState.classList.add('d-none');
+    })
+    .catch(error => {
+      console.error('Error loading events:', error);
+      loadingState.classList.add('d-none');
+      showToast('이벤트를 불러오는 중 오류가 발생했습니다.', 'error');
+    });
+}
+
+// Render calendar based on view
+function renderCalendar() {
+  const container = document.getElementById('calendarGrid');
+  
+  if (currentView === 'week') {
+    renderWeekView(container);
+  } else if (currentView === 'month') {
+    renderMonthView(container);
+  } else {
+    renderDayView(container);
+  }
+}
+
+function renderWeekView(container) {
+  const grid = document.createElement('div');
+  grid.className = 'calendar-grid week-view';
+  
+  // Calculate current week dates first
+  const currentDateObj = new Date(currentDate);
+  const weekStart = new Date(currentDateObj);
+  const dayOfWeek = currentDateObj.getDay();
+  const diff = currentDateObj.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  weekStart.setDate(diff);
+  
+  // Headers
+  const timeHeader = document.createElement('div');
+  timeHeader.className = 'calendar-header';
+  grid.appendChild(timeHeader);
+  
+  const days = ['{{ t("calendar.mon") }}', '{{ t("calendar.tue") }}', '{{ t("calendar.wed") }}', '{{ t("calendar.thu") }}', '{{ t("calendar.fri") }}', '{{ t("calendar.sat") }}', '{{ t("calendar.sun") }}'];
+  days.forEach((day, index) => {
+    const header = document.createElement('div');
+    header.className = 'calendar-header';
+    
+    // Calculate the actual date for this day
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + index);
+    const dateNum = dayDate.getDate();
+    const monthNum = dayDate.getMonth() + 1;
+    
+    // Check if this is today
+    const today = new Date();
+    const isToday = dayDate.toDateString() === today.toDateString();
+    
+    if (isToday) {
+      header.style.backgroundColor = '#007bff';
+      header.style.color = 'white';
+      header.style.fontWeight = 'bold';
+    }
+    
+    header.innerHTML = `${monthNum}.${dateNum}<br><small>(${day})</small>`;
+    grid.appendChild(header);
+  });
+  
+  // Time slots and day columns
+  for (let hour = 0; hour < 24; hour++) {
+    // Time label
+    const timeSlot = document.createElement('div');
+    timeSlot.className = 'time-slot';
+    timeSlot.textContent = `${hour.toString().padStart(2, '0')}:00`;
+    grid.appendChild(timeSlot);
+    
+    // Day columns
+    for (let day = 0; day < 7; day++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell';
+      
+      // Calculate current day date
+      const currentDayDate = new Date(weekStart);
+      currentDayDate.setDate(weekStart.getDate() + day);
+      // Use local date instead of UTC to avoid timezone issues
+      const dayString = currentDayDate.getFullYear() + '-' + 
+        String(currentDayDate.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(currentDayDate.getDate()).padStart(2, '0');
+      
+      // Add events for this time slot and day
+      const cellEvents = calendarEvents.filter(event => {
+        const eventStart = parseEventDate(event.start);
+        const eventEnd = parseEventDate(event.end);
+        // Use local date instead of UTC to avoid timezone issues
+        const eventDateString = eventStart.getFullYear() + '-' + 
+          String(eventStart.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(eventStart.getDate()).padStart(2, '0');
+        
+        // All-day events or events on this day
+        if (event.allDay || event.type === 'vacation' || event.type === 'birthday') {
+          return eventDateString === dayString && hour === 9; // Show all-day events at 9 AM slot
+        } else {
+          // Check if this hour is within the event's time range
+          const eventStartHour = eventStart.getHours();
+          const eventEndHour = eventEnd.getHours();
+          const eventEndMinute = eventEnd.getMinutes();
+          
+          // If event ends at exactly the hour, don't include that hour
+          const effectiveEndHour = (eventEndMinute === 0) ? eventEndHour - 1 : eventEndHour;
+          
+          return eventDateString === dayString && 
+                 hour >= eventStartHour && 
+                 hour <= effectiveEndHour;
+        }
+      });
+      
+      cellEvents.forEach(event => {
+        const eventEl = createEventElement(event);
+        // Only show event title on the first hour of the event
+        const eventStart = parseEventDate(event.start);
+        const eventStartHour = eventStart.getHours();
+        if (hour !== eventStartHour) {
+          eventEl.textContent = ''; // Empty content for continuation hours
+          // Apply lighter background for continuation using the same color as the main event
+          const eventId = event.id || 0;
+          const colorIndex = eventId % 8;
+          const colors = [
+            'rgba(0, 123, 255, 0.3)', // Blue
+            'rgba(40, 167, 69, 0.3)', // Green  
+            'rgba(220, 53, 69, 0.3)', // Red
+            'rgba(255, 193, 7, 0.3)', // Yellow
+            'rgba(23, 162, 184, 0.3)', // Cyan
+            'rgba(111, 66, 193, 0.3)', // Purple
+            'rgba(253, 126, 20, 0.3)', // Orange
+            'rgba(32, 201, 151, 0.3)'  // Teal
+          ];
+          eventEl.style.backgroundColor = colors[colorIndex];
+        }
+        cell.appendChild(eventEl);
+      });
+      
+      grid.appendChild(cell);
+    }
+  }
+  
+  container.appendChild(grid);
+}
+
+function renderMonthView(container) {
+  const grid = document.createElement('div');
+  grid.className = 'calendar-grid month-view';
+  
+  // Day headers
+  const days = ['{{ t("calendar.mon") }}', '{{ t("calendar.tue") }}', '{{ t("calendar.wed") }}', '{{ t("calendar.thu") }}', '{{ t("calendar.fri") }}', '{{ t("calendar.sat") }}', '{{ t("calendar.sun") }}'];
+  days.forEach(day => {
+    const header = document.createElement('div');
+    header.className = 'calendar-header';
+    header.textContent = day;
+    grid.appendChild(header);
+  });
+  
+  // Calculate month dates
+  const currentDateObj = new Date(currentDate);
+  const year = currentDateObj.getFullYear();
+  const month = currentDateObj.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - ((firstDay.getDay() + 6) % 7)); // Start from Monday
+  
+  // Calendar cells
+  for (let week = 0; week < 6; week++) {
+    for (let day = 0; day < 7; day++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell';
+      cell.style.minHeight = '100px';
+      
+      const currentDay = new Date(startDate);
+      currentDay.setDate(startDate.getDate() + (week * 7 + day));
+      // Use local date instead of UTC to avoid timezone issues
+      const dayString = currentDay.getFullYear() + '-' + 
+        String(currentDay.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(currentDay.getDate()).padStart(2, '0');
+      
+      // Add day number
+      const dayLabel = document.createElement('div');
+      dayLabel.textContent = currentDay.getDate();
+      dayLabel.style.fontWeight = 'bold';
+      dayLabel.style.marginBottom = '4px';
+      
+      // Mark days outside current month
+      if (currentDay.getMonth() !== month) {
+        cell.classList.add('other-month');
+      }
+      
+      // Highlight today
+      const today = new Date();
+      if (currentDay.toDateString() === today.toDateString()) {
+        cell.classList.add('today');
+        dayLabel.style.backgroundColor = '#007bff';
+        dayLabel.style.color = 'white';
+        dayLabel.style.borderRadius = '50%';
+        dayLabel.style.width = '24px';
+        dayLabel.style.height = '24px';
+        dayLabel.style.display = 'flex';
+        dayLabel.style.alignItems = 'center';
+        dayLabel.style.justifyContent = 'center';
+      }
+      
+      cell.appendChild(dayLabel);
+      
+      // Add events for this day
+      const dayEvents = calendarEvents.filter(event => {
+        const eventStart = parseEventDate(event.start);
+        // Use local date instead of UTC to avoid timezone issues
+        const eventDateString = eventStart.getFullYear() + '-' + 
+          String(eventStart.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(eventStart.getDate()).padStart(2, '0');
+        
+        // Debug log for month view
+        if (eventDateString === dayString) {
+          console.log(`Event "${event.title}" matches day ${dayString}:`, {
+            eventStart: event.start,
+            parsedDate: eventStart,
+            eventDateString: eventDateString,
+            dayString: dayString
+          });
+        }
+        
+        return eventDateString === dayString;
+      });
+      
+      dayEvents.forEach(event => {
+        const eventEl = createEventElement(event);
+        eventEl.style.display = 'block';
+        eventEl.style.marginBottom = '2px';
+        eventEl.style.fontSize = '0.7em';
+        cell.appendChild(eventEl);
+      });
+      
+      grid.appendChild(cell);
+    }
+  }
+  
+  container.appendChild(grid);
+}
+
+function renderDayView(container) {
+  const grid = document.createElement('div');
+  grid.className = 'calendar-grid day-view';
+  
+  // Headers
+  const timeHeader = document.createElement('div');
+  timeHeader.className = 'calendar-header';
+  grid.appendChild(timeHeader);
+  
+  const dayHeader = document.createElement('div');
+  dayHeader.className = 'calendar-header';
+  dayHeader.textContent = new Date(currentDate).toLocaleDateString('ko-KR');
+  grid.appendChild(dayHeader);
+  
+  const dayString = currentDate;
+  
+  // Time slots
+  for (let hour = 0; hour < 24; hour++) {
+    const timeSlot = document.createElement('div');
+    timeSlot.className = 'time-slot';
+    timeSlot.textContent = `${hour.toString().padStart(2, '0')}:00`;
+    grid.appendChild(timeSlot);
+    
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell';
+    
+    // Add events for this hour and day
+    const cellEvents = calendarEvents.filter(event => {
+      const eventStart = parseEventDate(event.start);
+      const eventEnd = parseEventDate(event.end);
+      // Use local date instead of UTC to avoid timezone issues
+      const eventDateString = eventStart.getFullYear() + '-' + 
+        String(eventStart.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(eventStart.getDate()).padStart(2, '0');
+      
+      // All-day events or events on this day
+      if (event.allDay || event.type === 'vacation' || event.type === 'birthday') {
+        return eventDateString === dayString && hour === 9; // Show all-day events at 9 AM slot
+      } else {
+        // Check if this hour is within the event's time range
+        const eventStartHour = eventStart.getHours();
+        const eventEndHour = eventEnd.getHours();
+        const eventEndMinute = eventEnd.getMinutes();
+        
+        // If event ends at exactly the hour, don't include that hour
+        const effectiveEndHour = (eventEndMinute === 0) ? eventEndHour - 1 : eventEndHour;
+        
+        return eventDateString === dayString && 
+               hour >= eventStartHour && 
+               hour <= effectiveEndHour;
+      }
+    });
+    
+    cellEvents.forEach(event => {
+      const eventEl = createEventElement(event);
+      // Only show event title on the first hour of the event
+      const eventStart = parseEventDate(event.start);
+      const eventStartHour = eventStart.getHours();
+      if (hour !== eventStartHour) {
+        eventEl.textContent = ''; // Empty content for continuation hours
+        // Apply lighter background for continuation using the same color as the main event
+        const eventId = event.id || 0;
+        const colorIndex = eventId % 8;
+        const colors = [
+          'rgba(0, 123, 255, 0.3)', // Blue
+          'rgba(40, 167, 69, 0.3)', // Green  
+          'rgba(220, 53, 69, 0.3)', // Red
+          'rgba(255, 193, 7, 0.3)', // Yellow
+          'rgba(23, 162, 184, 0.3)', // Cyan
+          'rgba(111, 66, 193, 0.3)', // Purple
+          'rgba(253, 126, 20, 0.3)', // Orange
+          'rgba(32, 201, 151, 0.3)'  // Teal
+        ];
+        eventEl.style.backgroundColor = colors[colorIndex];
+      }
+      cell.appendChild(eventEl);
+    });
+    
+    grid.appendChild(cell);
+  }
+  
+  container.appendChild(grid);
+}
+
+function createEventElement(event) {
+  const eventEl = document.createElement('div');
+  eventEl.className = `event-item ${event.type}`;
+  
+  if (event.isSubscribed) {
+    eventEl.classList.add('subscribed');
+  }
+  
+  if (event.status === 'CANCELLED') {
+    eventEl.classList.add('cancelled');
+  }
+  
+  // Apply unique colors based on event ID for better distinction
+  const eventId = event.id || 0;
+  const colorIndex = eventId % 8; // Use 8 different colors
+  
+  const colors = [
+    '#007bff', // Blue
+    '#28a745', // Green  
+    '#dc3545', // Red
+    '#ffc107', // Yellow
+    '#17a2b8', // Cyan
+    '#6f42c1', // Purple
+    '#fd7e14', // Orange
+    '#20c997'  // Teal
+  ];
+  
+  // Override default colors with unique colors for better distinction
+  if (event.type === 'my') {
+    eventEl.style.backgroundColor = colors[colorIndex];
+  } else if (event.type === 'vacation') {
+    // Vacation events get green variations
+    const greenVariations = ['#28a745', '#20c997', '#6c757d', '#17a2b8'];
+    eventEl.style.backgroundColor = greenVariations[colorIndex % greenVariations.length];
+  } else if (event.type === 'official') {
+    // Official events get red variations
+    const redVariations = ['#dc3545', '#fd7e14', '#6f42c1', '#e83e8c'];
+    eventEl.style.backgroundColor = redVariations[colorIndex % redVariations.length];
+  }
+  
+  eventEl.textContent = event.title;
+  eventEl.style.cursor = 'pointer';
+  eventEl.onclick = (e) => {
+    e.stopPropagation();
+    showEventDetail(event);
+  };
+  
+  return eventEl;
+}
+
+// Event detail modal
+function showEventDetail(event) {
+  try {
+    // Check if Bootstrap is available
+    if (typeof bootstrap === 'undefined') {
+      console.error('Bootstrap is not loaded yet. Please try again.');
+      setTimeout(() => showEventDetail(event), 100); // Retry after 100ms
+      return;
+    }
+    
+    const modalElement = document.getElementById('eventDetailModal');
+    if (!modalElement) {
+      console.error('eventDetailModal element not found!');
+      return;
+    }
+    
+    const body = document.getElementById('eventDetailBody');
+    const footer = document.getElementById('eventDetailFooter');
+    
+    if (!body) {
+      console.error('eventDetailBody element not found!');
+      return;
+    }
+    
+    if (!footer) {
+      console.error('eventDetailFooter element not found!');
+      return;
+    }
+  
+  // Build event detail content
+  let content = `
+    <h6>${event.title}</h6>
+    <p><strong>시간:</strong> ${formatEventTime(event)}</p>
+  `;
+  
+  if (event.description) {
+    content += `<p><strong>설명:</strong> ${event.description}</p>`;
+  }
+  
+  if (event.location) {
+    content += `<p><strong>위치:</strong> ${event.location}</p>`;
+  }
+  
+  if (event.type === 'vacation') {
+    content += `<p><strong>직원:</strong> ${event.employeeName}</p>`;
+    content += `<p><strong>휴가 종류:</strong> ${event.vacationType}</p>`;
+    content += `<p><strong>소속:</strong> ${event.orgName}</p>`;
+  }
+  
+  body.innerHTML = content;
+  
+  // Build footer buttons
+  let buttons = '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>';
+  
+  if (currentTab === 'vacation' || currentTab === 'official') {
+    // vacation이나 birthday 이벤트, 또는 official 이벤트에 구독 버튼 표시
+    if (event.type === 'vacation') {
+      buttons = `
+        <button type="button" class="btn btn-primary" onclick="subscribeToEvent(${event.id}, 'vacation_events')">
+          휴가 일정 구독하기
+        </button>
+      ` + buttons;
+    } else if (event.type === 'official') {
+      buttons = `
+        <button type="button" class="btn btn-primary" onclick="subscribeToEvent(${event.id}, 'calendar_events')">
+          공식 일정 구독하기
+        </button>
+      ` + buttons;
+    }
+    // birthday는 구독 불가 (개인정보)
+  }
+  
+  if (event.isSubscribed) {
+    buttons = `
+      <button type="button" class="btn btn-warning" onclick="unlinkEvent(${event.id})">연결 해제</button>
+      <button type="button" class="btn btn-danger" onclick="unsubscribeEvent(${event.id})">구독 해제</button>
+    ` + buttons;
+  }
+  
+  // My Calendar 이벤트 편집/삭제 버튼 (구독되지 않은 이벤트만)
+  if (currentTab === 'my' && event.type === 'my' && !event.isSubscribed) {
+    buttons = `
+      <button type="button" class="btn btn-outline-primary" onclick="editEvent(${event.id})">수정</button>
+      <button type="button" class="btn btn-outline-danger" onclick="deleteEvent(${event.id})">삭제</button>
+    ` + buttons;
+  }
+  
+  // Official 이벤트 편집/삭제 버튼 (HR/Admin만)
+  if (currentTab === 'official' && event.type === 'official' && userInfo && userInfo.is_hr_admin) {
+    buttons = `
+      <button type="button" class="btn btn-outline-primary" onclick="editEvent(${event.id})">수정</button>
+      <button type="button" class="btn btn-outline-danger" onclick="deleteEvent(${event.id})">삭제</button>
+    ` + buttons;
+  }
+  
+  footer.innerHTML = buttons;
+  
+  const modal = new bootstrap.Modal(modalElement);
+  modal.show();
+  
+  } catch (error) {
+    console.error('Error in showEventDetail:', error);
+  }
+}
+
+// Make function globally accessible
+window.showEventDetail = showEventDetail;
+
+function formatEventTime(event) {
+  const start = parseEventDate(event.start);
+  const end = parseEventDate(event.end);
+  
+  if (event.allDay) {
+    return start.toLocaleDateString('ko-KR');
+  } else {
+    return `${start.toLocaleString('ko-KR')} - ${end.toLocaleString('ko-KR')}`;
+  }
+}
+
+// New event modal
+function showNewEventModal() {
+  try {
+    // Check if Bootstrap is available
+    if (typeof bootstrap === 'undefined') {
+      console.error('Bootstrap is not loaded yet. Please try again.');
+      setTimeout(() => showNewEventModal(), 100); // Retry after 100ms
+      return;
+    }
+    
+    // Reset form
+    const form = document.getElementById('newEventForm');
+    if (!form) {
+      console.error('newEventForm not found!');
+      return;
+    }
+    
+    form.reset();
+    form.removeAttribute('data-edit-id');
+    
+    const modalTitle = document.querySelector('#newEventModal .modal-title');
+    if (modalTitle) {
+      modalTitle.textContent = '새 이벤트 생성';
+    }
+    
+    // Set event type based on current tab
+    const eventTypeInput = document.getElementById('eventTypeInput');
+    if (eventTypeInput) {
+      eventTypeInput.value = currentTab === 'official' ? 'OFFICIAL' : 'MY';
+    }
+    
+    // Set default times
+    const now = new Date();
+    const startTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour duration
+    
+    const startInput = document.getElementById('startInput');
+    const endInput = document.getElementById('endInput');
+    
+    if (startInput) startInput.value = startTime.toISOString().slice(0, 16);
+    if (endInput) endInput.value = endTime.toISOString().slice(0, 16);
+    
+    const modalElement = document.getElementById('newEventModal');
+    if (!modalElement) {
+      console.error('newEventModal element not found!');
+      return;
+    }
+    
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+  } catch (error) {
+    console.error('Error in showNewEventModal:', error);
+  }
+}
+
+// Make function globally accessible
+window.showNewEventModal = showNewEventModal;
+
+// Toggle all day event
+function toggleAllDay() {
+  const allDayCheck = document.getElementById('allDayCheck');
+  const startInput = document.getElementById('startInput');
+  const endInput = document.getElementById('endInput');
+  
+  if (allDayCheck.checked) {
+    // Set to all day: 09:00 to 18:00
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setHours(9, 0, 0, 0);
+    const endDate = new Date(today);
+    endDate.setHours(18, 0, 0, 0);
+    
+    startInput.value = startDate.toISOString().slice(0, 16);
+    endInput.value = endDate.toISOString().slice(0, 16);
+  }
+}
+
+window.toggleAllDay = toggleAllDay;
+
+function updateNewEventButton() {
+  const btn = document.getElementById('newEventBtn');
+  
+  if (currentTab === 'vacation') {
+    btn.style.display = 'none';
+  } else if (currentTab === 'official') {
+    // Official 탭에서는 HR/Admin만 버튼 표시
+    if (userInfo && userInfo.is_hr_admin) {
+      btn.style.display = 'block';
+      btn.textContent = '➕ New Official Event';
+    } else {
+      btn.style.display = 'none';
+    }
+  } else {
+    btn.style.display = 'block';
+    btn.textContent = '➕ New Event';
+  }
+}
+
+// Event form submission
+document.getElementById('newEventForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(this);
+  const eventData = {
+    title: formData.get('title'),
+    description: formData.get('description'),
+    start: formData.get('start'),
+    end: formData.get('end'),
+    allDay: formData.get('allDay') === 'on',
+    location: formData.get('location'),
+    eventType: formData.get('eventType')
+  };
+  
+  const editId = this.getAttribute('data-edit-id');
+  const isEdit = editId !== null;
+  
+  const url = isEdit ? `/api/calendar/events/${editId}` : '/api/calendar/events';
+  const method = isEdit ? 'PUT' : 'POST';
+  
+  fetch(url, {
+    method: method,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(eventData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast(isEdit ? '이벤트가 수정되었습니다.' : '이벤트가 생성되었습니다.', 'success');
+      if (typeof bootstrap !== 'undefined') {
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('newEventModal'));
+        if (modalInstance) modalInstance.hide();
+      }
+      // Add small delay to ensure database is updated
+      setTimeout(() => {
+        loadCalendarEvents();
+      }, 100);
+      this.reset();
+      this.removeAttribute('data-edit-id');
+      document.querySelector('#newEventModal .modal-title').textContent = '새 이벤트 생성';
+    } else {
+      showToast(data.error || (isEdit ? '이벤트 수정에 실패했습니다.' : '이벤트 생성에 실패했습니다.'), 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error saving event:', error);
+    showToast(isEdit ? '이벤트 수정 중 오류가 발생했습니다.' : '이벤트 생성 중 오류가 발생했습니다.', 'error');
+  });
+});
+
+// Event subscription
+function subscribeToEvent(eventId, sourceTable) {
+  fetch('/api/calendar/subscribe', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sourceEventId: eventId,
+      sourceTable: sourceTable
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast(data.message || '구독되었습니다.', 'success');
+      if (typeof bootstrap !== 'undefined') {
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('eventDetailModal'));
+        if (modalInstance) modalInstance.hide();
+      }
+      loadCalendarEvents();
+    } else {
+      showToast(data.error || '구독에 실패했습니다.', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error subscribing:', error);
+    showToast('구독 중 오류가 발생했습니다.', 'error');
+  });
+}
+
+// Make functions globally accessible
+window.subscribeToEvent = subscribeToEvent;
+
+// Event unsubscribe
+function unsubscribeEvent(myEventId) {
+  if (!confirm('정말로 구독을 해제하시겠습니까? 내 캘린더에서 제거됩니다.')) {
+    return;
+  }
+  
+  fetch('/api/calendar/unsubscribe', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      myEventId: myEventId
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast(data.message || '구독이 해제되었습니다.', 'success');
+      if (typeof bootstrap !== 'undefined') {
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('eventDetailModal'));
+        if (modalInstance) modalInstance.hide();
+      }
+      loadCalendarEvents();
+    } else {
+      showToast(data.error || '구독 해제에 실패했습니다.', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error unsubscribing:', error);
+    showToast('구독 해제 중 오류가 발생했습니다.', 'error');
+  });
+}
+
+window.unsubscribeEvent = unsubscribeEvent;
+
+// Event unlink
+function unlinkEvent(myEventId) {
+  if (!confirm('연결을 해제하시겠습니까? 이후 원본 변경사항이 반영되지 않습니다.')) {
+    return;
+  }
+  
+  fetch('/api/calendar/unlink', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      myEventId: myEventId
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast(data.message || '연결이 해제되었습니다.', 'success');
+      if (typeof bootstrap !== 'undefined') {
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('eventDetailModal'));
+        if (modalInstance) modalInstance.hide();
+      }
+      loadCalendarEvents();
+    } else {
+      showToast(data.error || '연결 해제에 실패했습니다.', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error unlinking:', error);
+    showToast('연결 해제 중 오류가 발생했습니다.', 'error');
+  });
+}
+
+window.unlinkEvent = unlinkEvent;
+
+// Event edit
+function editEvent(eventId) {
+  // 기존 이벤트 데이터 로드
+  fetch(`/api/calendar/events/${eventId}`)
+    .then(response => response.json())
+    .then(event => {
+      // 모달 폼에 데이터 채우기
+      const form = document.getElementById('newEventForm');
+      form.querySelector('[name="title"]').value = event.title;
+      form.querySelector('[name="description"]').value = event.description || '';
+      form.querySelector('[name="start"]').value = event.start.slice(0, 16); // ISO to datetime-local format
+      form.querySelector('[name="end"]').value = event.end.slice(0, 16);
+      form.querySelector('[name="allDay"]').checked = event.allDay;
+      form.querySelector('[name="location"]').value = event.location || '';
+      
+      // 수정 모드로 설정
+      document.querySelector('#newEventModal .modal-title').textContent = '이벤트 수정';
+      form.setAttribute('data-edit-id', eventId);
+      
+      if (typeof bootstrap !== 'undefined') {
+        const modal = new bootstrap.Modal(document.getElementById('newEventModal'));
+        modal.show();
+      } else {
+        console.error('Bootstrap is not loaded');
+      }
+    })
+    .catch(error => {
+      console.error('Error loading event:', error);
+      showToast('이벤트 정보를 불러오는 중 오류가 발생했습니다.', 'error');
+    });
+}
+
+window.editEvent = editEvent;
+
+// Event delete
+function deleteEvent(eventId) {
+  if (!confirm('정말로 이 이벤트를 삭제하시겠습니까?')) {
+    return;
+  }
+  
+  fetch(`/api/calendar/events/${eventId}`, {
+    method: 'DELETE'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('이벤트가 삭제되었습니다.', 'success');
+      if (typeof bootstrap !== 'undefined') {
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('eventDetailModal'));
+        if (modalInstance) modalInstance.hide();
+      }
+      loadCalendarEvents();
+    } else {
+      showToast(data.error || '이벤트 삭제에 실패했습니다.', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error deleting event:', error);
+    showToast('이벤트 삭제 중 오류가 발생했습니다.', 'error');
+  });
+}
+
+window.deleteEvent = deleteEvent;
+
+// Refresh calendar
+function refreshCalendar() {
+  loadCalendarEvents();
+  showToast('캘린더가 새로고침되었습니다.', 'info');
+}
+
+
+// Toast notifications
+function showToast(message, type = 'info') {
+  const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+  
+  const toast = document.createElement('div');
+  toast.className = `toast show border-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}`;
+  toast.setAttribute('role', 'alert');
+  
+  toast.innerHTML = `
+    <div class="toast-header">
+      <strong class="me-auto">알림</strong>
+      <button type="button" class="btn-close" onclick="this.closest('.toast').remove()"></button>
+    </div>
+    <div class="toast-body">${message}</div>
+  `;
+  
+  toastContainer.appendChild(toast);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.remove();
+    }
+  }, 5000);
+}
+
+function createToastContainer() {
+  const container = document.createElement('div');
+  container.className = 'toast-container';
+  document.body.appendChild(container);
+  return container;
+}
+
+</script>
+
+{% endblock %}
