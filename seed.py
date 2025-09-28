@@ -190,6 +190,199 @@ def seed_user_settings(cur):
     """)
     print("Set default organization for demo user")
 
+def seed_report_it_issues(cur):
+    """Seed Report-It sample issues for testing"""
+    from datetime import datetime, timedelta
+    
+    # Helper function to get ISO time string
+    def get_time(days_ago=0, hours_ago=0):
+        dt = datetime.now() - timedelta(days=days_ago, hours=hours_ago)
+        return dt.strftime('%Y-%m-%dT%H:%M:%S')
+    
+    # Sample issues data
+    sample_issues = [
+        # Ownership - 진행중인 이슈들
+        {
+            'location_id': 'Ownership',
+            'title': '프로젝터',
+            'type': '고장',
+            'description': '전원 버튼을 눌러도 반응이 없습니다. LED 표시등도 켜지지 않는 상태입니다.',
+            'status': 'OPEN',
+            'reporter_email': 'user001@nota.ai',
+            'reported_at': get_time(days_ago=2),
+            'source': 'google_form'
+        },
+        {
+            'location_id': 'Ownership',
+            'title': '화이트보드 마커',
+            'type': '성능저하',
+            'description': '마커가 거의 다 말라서 글씨가 잘 안써집니다. 새 마커로 교체 필요합니다.',
+            'status': 'IN_PROGRESS',
+            'reporter_email': 'user002@nota.ai',
+            'reported_at': get_time(days_ago=1),
+            'source': 'google_form'
+        },
+        
+        # Trust - 완료된 이슈
+        {
+            'location_id': 'Trust',
+            'title': '에어컨',
+            'type': '고장',
+            'description': '냉방이 전혀 안됩니다. 리모컨으로도 작동하지 않습니다.',
+            'status': 'DONE',
+            'reporter_email': 'user003@nota.ai',
+            'reported_at': get_time(days_ago=5),
+            'source': 'google_form'
+        },
+        
+        # Focus-A - 조치 불가 이슈
+        {
+            'location_id': 'Focus-A',
+            'title': '의자',
+            'type': '파손',
+            'description': '의자 등받이가 완전히 부러졌습니다. 사용할 수 없는 상태입니다.',
+            'status': 'CANNOT_FIX',
+            'reporter_email': 'user004@nota.ai',
+            'reported_at': get_time(days_ago=3),
+            'source': 'manual'
+        },
+        
+        # Lounge - 다양한 이슈들
+        {
+            'location_id': 'Lounge',
+            'title': '커피머신',
+            'type': '고장',
+            'description': '물이 나오지 않습니다. 전원은 들어오는데 펌프에 문제가 있는 것 같습니다.',
+            'status': 'OPEN',
+            'reporter_email': 'user005@nota.ai',
+            'reported_at': get_time(hours_ago=3),
+            'source': 'google_form'
+        },
+        {
+            'location_id': 'Lounge',
+            'title': '소파',
+            'type': '성능저하',
+            'description': '쿠션이 많이 꺼져서 앉기 불편합니다.',
+            'status': 'OPEN',
+            'reporter_email': 'user006@nota.ai',
+            'reported_at': get_time(hours_ago=5),
+            'source': 'google_form'
+        },
+        
+        # SnackBar - 최근 이슈들
+        {
+            'location_id': 'SnackBar',
+            'title': '냉장고',
+            'type': '고장',
+            'description': '냉장고 문이 제대로 닫히지 않습니다. 고무패킹이 손상된 것 같습니다.',
+            'status': 'IN_PROGRESS',
+            'reporter_email': 'user007@nota.ai',
+            'reported_at': get_time(hours_ago=8),
+            'source': 'google_form'
+        },
+        {
+            'location_id': 'SnackBar',
+            'title': '전자레인지',
+            'type': '기타',
+            'description': '작동은 되는데 이상한 소음이 계속 납니다.',
+            'status': 'OPEN',
+            'reporter_email': 'user008@nota.ai',
+            'reported_at': get_time(hours_ago=12),
+            'source': 'google_form'
+        }
+    ]
+    
+    # Insert issues and create related records
+    for issue_data in sample_issues:
+        # Insert issue
+        cur.execute("""
+            INSERT INTO issues (location_id, title, type, description, status, reporter_email, reported_at, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            issue_data['location_id'],
+            issue_data['title'],
+            issue_data['type'],
+            issue_data['description'],
+            issue_data['status'],
+            issue_data['reporter_email'],
+            issue_data['reported_at'],
+            issue_data['source']
+        ))
+        
+        issue_id = cur.lastrowid
+        
+        # Create initial status history
+        cur.execute("""
+            INSERT INTO status_history (issue_id, status, actor, memo, changed_at)
+            VALUES (?, 'OPEN', 'System', '이슈 접수', ?)
+        """, (issue_id, issue_data['reported_at']))
+        
+        # Add additional status changes for non-OPEN issues
+        if issue_data['status'] == 'IN_PROGRESS':
+            cur.execute("""
+                INSERT INTO status_history (issue_id, status, actor, memo, changed_at)
+                VALUES (?, 'IN_PROGRESS', '시설관리자', '조치 시작', ?)
+            """, (issue_id, get_time(hours_ago=2)))
+            
+            # Add manager comment for in-progress issues
+            cur.execute("""
+                INSERT INTO comments (issue_id, body, author, source, created_at)
+                VALUES (?, '문제를 확인했으며 조치 중입니다. 곧 해결될 예정입니다.', '시설관리자', 'manual', ?)
+            """, (issue_id, get_time(hours_ago=1)))
+            
+        elif issue_data['status'] == 'DONE':
+            cur.execute("""
+                INSERT INTO status_history (issue_id, status, actor, memo, changed_at)
+                VALUES (?, 'IN_PROGRESS', '시설관리자', '조치 시작', ?)
+            """, (issue_id, get_time(days_ago=4)))
+            
+            cur.execute("""
+                INSERT INTO status_history (issue_id, status, actor, memo, changed_at)
+                VALUES (?, 'DONE', '시설관리자', '수리 완료', ?)
+            """, (issue_id, get_time(days_ago=2)))
+            
+            # Add completion comment
+            cur.execute("""
+                INSERT INTO comments (issue_id, body, author, source, created_at)
+                VALUES (?, '에어컨 수리가 완료되었습니다. 정상 작동을 확인했습니다.', '시설관리자', 'manual', ?)
+            """, (issue_id, get_time(days_ago=2)))
+            
+        elif issue_data['status'] == 'CANNOT_FIX':
+            cur.execute("""
+                INSERT INTO status_history (issue_id, status, actor, memo, changed_at)
+                VALUES (?, 'IN_PROGRESS', '시설관리자', '조치 검토', ?)
+            """, (issue_id, get_time(days_ago=2)))
+            
+            cur.execute("""
+                INSERT INTO status_history (issue_id, status, actor, memo, changed_at)
+                VALUES (?, 'CANNOT_FIX', '시설관리자', '수리 불가 - 교체 필요', ?)
+            """, (issue_id, get_time(days_ago=1)))
+            
+            # Add cannot fix comment
+            cur.execute("""
+                INSERT INTO comments (issue_id, body, author, source, created_at)
+                VALUES (?, '의자 프레임이 완전히 손상되어 수리가 불가능합니다. 새 의자로 교체 예정입니다.', '시설관리자', 'manual', ?)
+            """, (issue_id, get_time(days_ago=1)))
+    
+    # Add some sample attachments for Google Form issues
+    sample_attachments = [
+        (1, 'https://drive.google.com/file/d/1234567890/view'),  # 프로젝터 사진
+        (5, 'https://drive.google.com/file/d/2345678901/view'),  # 커피머신 사진
+        (7, 'https://drive.google.com/file/d/3456789012/view'),  # 냉장고 사진
+    ]
+    
+    for issue_id, attachment_url in sample_attachments:
+        try:
+            cur.execute("""
+                INSERT INTO attachments (issue_id, url, created_at)
+                VALUES (?, ?, ?)
+            """, (issue_id, attachment_url, get_time()))
+        except:
+            # Skip if issue_id doesn't exist
+            pass
+    
+    print('Report-It sample issues seeded successfully!')
+
 def main():
     con = sqlite3.connect(DB)
     cur = con.cursor()
@@ -211,6 +404,9 @@ def main():
     
     # Set user settings
     seed_user_settings(cur)
+    
+    # Seed Report-It sample issues
+    seed_report_it_issues(cur)
     
     # seed some vacation/company events if CSVs exist (legacy)
     # vacations.csv -> events(kind='vac', title=name, start,end)

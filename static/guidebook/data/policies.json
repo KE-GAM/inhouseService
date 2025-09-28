@@ -1,0 +1,134 @@
+[
+  {
+    "id": "annual-leave",
+    "slug": "annual-leave",
+    "title": "연차 및 휴가 규정",
+    "summary": "연차, 반차, 병가 신청 및 승인 절차에 관한 규정",
+    "owner_dept": "HR",
+    "doc_owner": "한지원",
+    "approver": "한지원",
+    "last_reviewed": "2025-09-01",
+    "version": "2.1",
+    "visibility": "PUBLIC",
+    "tags": ["휴가", "연차", "반차", "병가", "근태"],
+    "content": {
+      "scope": "전 임직원",
+      "effective_date": "2025-01-01",
+      "sections": [
+        {
+          "title": "연차 및 반차 신청",
+          "content": "연차 및 반차는 D-1 18:00까지 포털에서 신청해야 합니다. 팀장 승인 후 HR에서 최종 처리합니다."
+        },
+        {
+          "title": "병가 신청",
+          "content": "병가는 당일 신청이 가능하며, 1일 초과 시 의사 소견서를 제출해야 합니다."
+        },
+        {
+          "title": "예외 사항",
+          "content": "긴급 상황 시 사후 보고가 가능하며, HR에서 증빙 자료를 바탕으로 판단합니다."
+        }
+      ],
+      "violations": "무단 결근 시 경고 조치, 반복 시 징계 절차 진행",
+      "contact": "#ask-hr 채널 또는 hr@nota.ai"
+    }
+  },
+  {
+    "id": "work-hours",
+    "slug": "work-hours",
+    "title": "근무시간 및 유연근무 규정",
+    "summary": "표준 근무시간, 유연근무제, 재택근무에 관한 규정",
+    "owner_dept": "HR",
+    "doc_owner": "임지우",
+    "approver": "한지원",
+    "last_reviewed": "2025-08-15",
+    "version": "1.3",
+    "visibility": "PUBLIC",
+    "tags": ["근무시간", "유연근무", "재택근무", "코어타임"],
+    "content": {
+      "scope": "전 임직원",
+      "effective_date": "2025-01-01",
+      "sections": [
+        {
+          "title": "표준 근무시간",
+          "content": "월-금 09:00~18:00 (점심시간 12:00~13:00 제외), 주 40시간"
+        },
+        {
+          "title": "유연근무제",
+          "content": "코어타임 10:00~16:00 준수 시 출퇴근 시간 자율 조정 가능"
+        },
+        {
+          "title": "재택근무",
+          "content": "주 2회까지 가능, 사전 팀장 승인 필요, 업무 성과 기준 충족 시"
+        }
+      ],
+      "violations": "무단 지각/조퇴 시 경고, 월 3회 초과 시 면담 실시",
+      "contact": "#ask-hr 채널"
+    }
+  },
+  {
+    "id": "expense-policy",
+    "slug": "expense-policy",
+    "title": "경비 및 출장비 규정",
+    "summary": "업무 관련 경비 지출 및 출장비 신청 규정",
+    "owner_dept": "FIN",
+    "doc_owner": "권지훈",
+    "approver": "권지훈",
+    "last_reviewed": "2025-07-30",
+    "version": "3.0",
+    "visibility": "PUBLIC",
+    "tags": ["경비", "출장비", "교통비", "식대", "회계"],
+    "content": {
+      "scope": "전 임직원",
+      "effective_date": "2025-08-01",
+      "sections": [
+        {
+          "title": "일반 경비",
+          "content": "업무용 교통비, 식대, 도서/교육비는 영수증과 함께 신청"
+        },
+        {
+          "title": "출장비",
+          "content": "국내 출장 시 실비 지급, 해외 출장 시 일당 + 실비 지급"
+        },
+        {
+          "title": "승인 절차",
+          "content": "10만원 이하: 팀장 승인, 10만원 초과: 팀장 + 재무팀 승인"
+        }
+      ],
+      "violations": "허위 신청 시 징계, 영수증 미제출 시 지급 불가",
+      "contact": "finance@nota.ai"
+    }
+  },
+  {
+    "id": "security-policy",
+    "slug": "security-policy",
+    "title": "정보보안 및 개인정보 보호 규정",
+    "summary": "회사 정보자산 보호 및 개인정보 처리에 관한 규정",
+    "owner_dept": "IT",
+    "doc_owner": "서재현",
+    "approver": "서재현",
+    "last_reviewed": "2025-03-10",
+    "version": "2.2",
+    "visibility": "RESTRICTED",
+    "tags": ["보안", "개인정보", "정보자산", "비밀번호"],
+    "content": {
+      "scope": "전 임직원",
+      "effective_date": "2025-01-01",
+      "sections": [
+        {
+          "title": "비밀번호 정책",
+          "content": "최소 8자리, 영문/숫자/특수문자 조합, 3개월마다 변경"
+        },
+        {
+          "title": "정보 접근 권한",
+          "content": "업무 필요 최소한의 권한만 부여, 정기적 권한 검토"
+        },
+        {
+          "title": "개인정보 처리",
+          "content": "수집/이용/제공 시 동의 절차 준수, 보관 기간 엄수"
+        }
+      ],
+      "violations": "보안 사고 시 즉시 IT팀 신고, 고의 위반 시 징계",
+      "contact": "security@nota.ai"
+    }
+  }
+]

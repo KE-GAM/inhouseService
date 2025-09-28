@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta
 from flask import Blueprint, request, render_template, redirect, url_for, jsonify, flash
 from db import get_db
+from i18n import get_language_from_request
 
 bp = Blueprint('calendar', __name__)
 
@@ -106,8 +107,8 @@ def get_user_info(user_email):
     """, (user_email,)).fetchone()
     
     if user_info:
-        # HR팀 또는 관리자 권한 체크
-        is_hr_admin = user_info['org_code'] in ['HR'] or 'Manager' in user_info['title'] or 'Director' in user_info['title']
+        # 이원규는 Admin 권한 부여, 그 외는 HR팀 또는 관리자 권한 체크
+        is_hr_admin = user_info['email'] == 'lwk9589@gmail.com' or user_info['org_code'] in ['HR'] or 'Manager' in user_info['title'] or 'Director' in user_info['title']
         
         return {
             'employee_id': user_info['employee_id'],
@@ -158,7 +159,8 @@ def set_user_default_org(user_email, org_code):
 @bp.route('/calendar')
 def calendar_home():
     """Calendar Hub 메인 페이지"""
-    user_email = 'user014@example.com'  # 데모용 고정값 (한지원 - HR 팀)
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
+    lang = get_language_from_request(request)
     
     # 사용자 정보 조회
     user_info = get_user_info(user_email)
@@ -211,7 +213,8 @@ def calendar_home():
         'end_date': end_date,
         'org': org,
         'show_birthdays': show_birthdays,
-        'orgs': orgs
+        'orgs': orgs,
+        'lang': lang
     }
     
     return render_template('calendar/hub.html', **context)
@@ -220,7 +223,7 @@ def calendar_home():
 @bp.route('/api/calendar/events')
 def api_get_events():
     """캘린더 이벤트 조회 API"""
-    user_email = 'user014@example.com'  # 한지원 - HR 팀
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     tab = request.args.get('tab', 'my')
     start_date = request.args.get('start')
     end_date = request.args.get('end')
@@ -248,11 +251,28 @@ def api_get_events():
         """, (user_email, start_filter, end_filter)).fetchall()
         
         for event in my_events:
+            # Remove timezone info to ensure consistent parsing
+            start_time = event['start_at']
+            end_time = event['end_at']
+            
+            # Remove timezone suffix if present
+            if '+' in start_time:
+                start_time = start_time.split('+')[0]
+            if '+' in end_time:
+                end_time = end_time.split('+')[0]
+            if 'Z' in start_time:
+                start_time = start_time.replace('Z', '')
+            if 'Z' in end_time:
+                end_time = end_time.replace('Z', '')
+            
+            # Debug: print the processed times
+            print(f"Processing event {event['id']}: {event['start_at']} -> {start_time}")
+            
             events.append({
                 'id': event['id'],
                 'title': event['title'],
-                'start': event['start_at'],
-                'end': event['end_at'],
+                'start': start_time,
+                'end': end_time,
                 'allDay': bool(event['all_day']),
                 'type': 'my',
                 'status': event['status'],
@@ -352,11 +372,25 @@ def api_get_events():
         """, (start_filter, end_filter)).fetchall()
         
         for event in official_events:
+            # Remove timezone info to ensure consistent parsing
+            start_time = event['start_at']
+            end_time = event['end_at']
+            
+            # Remove timezone suffix if present
+            if '+' in start_time:
+                start_time = start_time.split('+')[0]
+            if '+' in end_time:
+                end_time = end_time.split('+')[0]
+            if 'Z' in start_time:
+                start_time = start_time.replace('Z', '')
+            if 'Z' in end_time:
+                end_time = end_time.replace('Z', '')
+            
             events.append({
                 'id': event['id'],
                 'title': event['title'],
-                'start': event['start_at'],
-                'end': event['end_at'],
+                'start': start_time,
+                'end': end_time,
                 'allDay': bool(event['all_day']),
                 'type': 'official',
                 'status': event['status'],
@@ -364,13 +398,17 @@ def api_get_events():
                 'description': event['description']
             })
     
-    return jsonify(events)
+    response = jsonify(events)
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 # 이벤트 생성
 @bp.route('/api/calendar/events', methods=['POST'])
 def api_create_event():
     """이벤트 생성 API"""
-    user_email = 'user014@example.com'  # 한지원 - HR 팀
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     data = request.get_json()
     
     db = get_db()
@@ -381,12 +419,17 @@ def api_create_event():
         if not user_info['is_hr_admin']:
             return jsonify({'error': 'Official 이벤트는 HR/Admin만 생성할 수 있습니다'}), 403
     
+    # Store times as-is without timezone conversion
+    # JavaScript will handle timezone parsing consistently
+    start_time = data['start']
+    end_time = data['end']
+    
     db.execute("""
         INSERT INTO calendar_events 
         (title, description, start_at, end_at, all_day, location, event_type, owner_email, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        data['title'], data.get('description', ''), data['start'], data['end'],
+        data['title'], data.get('description', ''), start_time, end_time,
         data.get('allDay', False), data.get('location', ''), data['eventType'],
         user_email, user_email
     ))
@@ -400,7 +443,7 @@ def api_create_event():
 def api_subscribe_event():
     """이벤트 구독 API"""
     try:
-        user_email = 'user014@example.com'  # 한지원 - HR 팀
+        user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
         data = request.get_json()
         
         if not data:
@@ -491,7 +534,7 @@ def api_sync_hris():
 @bp.route('/api/calendar/events/<int:event_id>', methods=['PUT'])
 def api_update_event(event_id):
     """이벤트 수정 API"""
-    user_email = 'user014@example.com'  # 한지원 - HR 팀
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     data = request.get_json()
     
     db = get_db()
@@ -520,13 +563,18 @@ def api_update_event(event_id):
     if subscription:
         return jsonify({'error': 'Subscribed events cannot be edited'}), 400
     
+    # Store times as-is without timezone conversion
+    # JavaScript will handle timezone parsing consistently
+    start_time = data['start']
+    end_time = data['end']
+    
     db.execute("""
         UPDATE calendar_events 
         SET title = ?, description = ?, start_at = ?, end_at = ?, 
             all_day = ?, location = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     """, (
-        data['title'], data.get('description', ''), data['start'], data['end'],
+        data['title'], data.get('description', ''), start_time, end_time,
         data.get('allDay', False), data.get('location', ''), event_id
     ))
     
@@ -538,7 +586,7 @@ def api_update_event(event_id):
 @bp.route('/api/calendar/events/<int:event_id>', methods=['DELETE'])
 def api_delete_event(event_id):
     """이벤트 삭제 API"""
-    user_email = 'user014@example.com'  # 한지원 - HR 팀
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     
     db = get_db()
     
@@ -587,7 +635,7 @@ def api_delete_event(event_id):
 def api_unsubscribe_event():
     """이벤트 구독 해제 API"""
     try:
-        user_email = 'user014@example.com'  # 한지원 - HR 팀
+        user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
         data = request.get_json()
         
         if not data or 'myEventId' not in data:
@@ -621,7 +669,7 @@ def api_unsubscribe_event():
 def api_unlink_event():
     """이벤트 연결 해제 API"""
     try:
-        user_email = 'user014@example.com'  # 한지원 - HR 팀
+        user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
         data = request.get_json()
         
         if not data or 'myEventId' not in data:
@@ -721,7 +769,7 @@ def api_get_vacation_event(event_id):
 @bp.route('/api/calendar/user-settings', methods=['POST'])
 def api_save_user_settings():
     """사용자 설정 저장 API"""
-    user_email = 'user014@example.com'  # 한지원 - HR 팀
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     data = request.get_json()
     
     if 'defaultOrg' in data:
@@ -732,7 +780,7 @@ def api_save_user_settings():
 @bp.route('/api/calendar/user-settings')
 def api_get_user_settings():
     """사용자 설정 조회 API"""
-    user_email = 'user014@example.com'  # 한지원 - HR 팀
+    user_email = 'lwk9589@gmail.com'  # 이원규 - Service Architect
     
     db = get_db()
     settings = db.execute("""

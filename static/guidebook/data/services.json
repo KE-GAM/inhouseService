@@ -1,0 +1,282 @@
+[
+  {
+    "id": "hr-certificate",
+    "slug": "hr-certificate",
+    "title": "재직증명서 발급",
+    "description": "재직증명서, 경력증명서, 급여명세서 등 각종 증명서 발급 서비스",
+    "department": "HR",
+    "owner_dept": "HR",
+    "contact_person": "임지우",
+    "target_audience": "전 직원",
+    "prerequisites": "재직 중인 직원",
+    "request_channels": [
+      {
+        "type": "포털",
+        "description": "회사 포털 > 증명서 발급",
+        "preferred": true
+      },
+      {
+        "type": "이메일",
+        "description": "hr@nota.ai",
+        "preferred": false
+      },
+      {
+        "type": "슬랙",
+        "description": "#ask-hr 채널",
+        "preferred": false
+      }
+    ],
+    "required_info": ["용도 명시", "수령 방법(이메일/우편/직접수령)", "발급 부수"],
+    "sla": "영업일 기준 2일",
+    "operating_hours": "평일 09:00-18:00",
+    "escalation": "긴급한 경우 HR 리드에게 직접 문의",
+    "related_policies": [
+      {
+        "title": "개인정보 보호 규정",
+        "url": "/guidebook/policies/security-policy"
+      }
+    ],
+    "last_reviewed": "2025-08-20",
+    "tags": ["증명서", "발급", "HR", "서류"]
+  },
+  {
+    "id": "hr-leave-management",
+    "slug": "hr-leave-management",
+    "title": "휴가 관리 서비스",
+    "description": "연차, 반차, 병가, 특별휴가 신청 및 승인 관리",
+    "department": "HR",
+    "owner_dept": "HR",
+    "contact_person": "한지원",
+    "target_audience": "전 직원",
+    "prerequisites": "없음",
+    "request_channels": [
+      {
+        "type": "포털",
+        "description": "회사 포털 > 근태 > 휴가신청",
+        "preferred": true
+      },
+      {
+        "type": "슬랙",
+        "description": "#ask-hr 채널 (문의용)",
+        "preferred": false
+      }
+    ],
+    "required_info": ["휴가 종류", "사용 날짜", "사용 사유"],
+    "sla": "신청 후 48시간 이내 처리",
+    "operating_hours": "평일 10:00-17:00",
+    "escalation": "팀장 승인 지연 시 HR팀에 문의",
+    "related_policies": [
+      {
+        "title": "연차 및 휴가 규정",
+        "url": "/guidebook/policies/annual-leave"
+      }
+    ],
+    "last_reviewed": "2025-09-01",
+    "tags": ["휴가", "연차", "근태", "승인"]
+  },
+  {
+    "id": "it-account-management",
+    "slug": "it-account-management",
+    "title": "시스템 계정 관리",
+    "description": "각종 시스템 계정 생성, 권한 부여, 비밀번호 재설정",
+    "department": "IT",
+    "owner_dept": "IT",
+    "contact_person": "서재현",
+    "target_audience": "전 직원",
+    "prerequisites": "없음",
+    "request_channels": [
+      {
+        "type": "슬랙",
+        "description": "#ask-it 채널",
+        "preferred": true
+      },
+      {
+        "type": "이메일",
+        "description": "it@nota.ai",
+        "preferred": false
+      },
+      {
+        "type": "직접 방문",
+        "description": "IT팀 사무실 (긴급한 경우)",
+        "preferred": false
+      }
+    ],
+    "required_info": ["요청 시스템", "권한 레벨", "사용 목적"],
+    "sla": "계정 생성: 24시간, 비밀번호 재설정: 2시간",
+    "operating_hours": "평일 09:00-18:00",
+    "escalation": "시스템 장애 시 IT 리드에게 직접 연락",
+    "related_policies": [
+      {
+        "title": "정보보안 규정",
+        "url": "/guidebook/policies/security-policy"
+      }
+    ],
+    "last_reviewed": "2025-09-15",
+    "tags": ["계정", "권한", "비밀번호", "IT"]
+  },
+  {
+    "id": "finance-expense",
+    "slug": "finance-expense",
+    "title": "경비 처리 서비스",
+    "description": "업무 관련 경비, 출장비, 교육비 등의 신청 및 지급 처리",
+    "department": "FIN",
+    "owner_dept": "FIN",
+    "contact_person": "권지훈",
+    "target_audience": "전 직원",
+    "prerequisites": "업무 관련 지출에 한함",
+    "request_channels": [
+      {
+        "type": "포털",
+        "description": "회사 포털 > 재무 > 경비신청",
+        "preferred": true
+      },
+      {
+        "type": "이메일",
+        "description": "finance@nota.ai",
+        "preferred": false
+      }
+    ],
+    "required_info": ["지출 내역", "영수증", "사용 목적", "프로젝트 코드"],
+    "sla": "10만원 이하: 3영업일, 10만원 초과: 5영업일",
+    "operating_hours": "평일 09:00-17:00",
+    "escalation": "승인 지연 시 재무팀 리드에게 문의",
+    "related_policies": [
+      {
+        "title": "경비 및 출장비 규정",
+        "url": "/guidebook/policies/expense-policy"
+      }
+    ],
+    "last_reviewed": "2025-08-30",
+    "tags": ["경비", "출장비", "지급", "재무"]
+  },
+  {
+    "id": "ops-facility",
+    "slug": "ops-facility",
+    "title": "시설 관리 서비스",
+    "description": "회의실 예약, 사무용품 신청, 시설 유지보수 요청",
+    "department": "OPS",
+    "owner_dept": "OPS",
+    "contact_person": "정하준",
+    "target_audience": "전 직원",
+    "prerequisites": "없음",
+    "request_channels": [
+      {
+        "type": "Booker 시스템",
+        "description": "Desk & Room Booker 서비스",
+        "preferred": true
+      },
+      {
+        "type": "슬랙",
+        "description": "#ask-ops 채널",
+        "preferred": false
+      },
+      {
+        "type": "이메일",
+        "description": "ops@nota.ai",
+        "preferred": false
+      }
+    ],
+    "required_info": ["요청 내용", "사용 목적", "예상 사용 기간"],
+    "sla": "회의실 예약: 즉시, 사무용품: 3영업일, 유지보수: 상황에 따라",
+    "operating_hours": "평일 08:00-19:00",
+    "escalation": "시설 응급상황 시 24시간 핫라인 이용",
+    "related_policies": [],
+    "last_reviewed": "2025-09-10",
+    "tags": ["시설", "회의실", "사무용품", "운영"]
+  },
+  {
+    "id": "ml-infra",
+    "slug": "ml-infra",
+    "title": "ML/AI 인프라 서비스",
+    "description": "GPU 서버 접근 권한, ML 모델 배포, 데이터 파이프라인 지원",
+    "department": "ENG-ML",
+    "owner_dept": "ENG-ML",
+    "contact_person": "문주연",
+    "target_audience": "개발팀, 연구팀",
+    "prerequisites": "ML/AI 프로젝트 진행 중인 팀",
+    "request_channels": [
+      {
+        "type": "슬랙",
+        "description": "#ml-infra 채널",
+        "preferred": true
+      },
+      {
+        "type": "이메일",
+        "description": "ml-team@nota.ai",
+        "preferred": false
+      }
+    ],
+    "required_info": ["프로젝트 개요", "예상 사용 기간", "필요한 GPU 수량", "데이터 크기"],
+    "sla": "권한 부여: 2영업일, 인프라 구성: 1주일",
+    "operating_hours": "평일 10:00-18:00",
+    "escalation": "긴급 프로젝트는 ML팀 리드에게 직접 문의",
+    "related_policies": [
+      {
+        "title": "정보보안 규정",
+        "url": "/guidebook/policies/security-policy"
+      }
+    ],
+    "last_reviewed": "2025-09-05",
+    "tags": ["ML", "AI", "GPU", "인프라"]
+  },
+  {
+    "id": "design-brand",
+    "slug": "design-brand",
+    "title": "브랜드 디자인 서비스",
+    "description": "로고, 브랜드 가이드라인, 마케팅 소재 디자인 지원",
+    "department": "DESIGN",
+    "owner_dept": "DESIGN",
+    "contact_person": "신채원",
+    "target_audience": "마케팅팀, 영업팀, 기타 부서",
+    "prerequisites": "브랜드 가이드라인 숙지",
+    "request_channels": [
+      {
+        "type": "슬랙",
+        "description": "#design-requests 채널",
+        "preferred": true
+      },
+      {
+        "type": "이메일",
+        "description": "design@nota.ai",
+        "preferred": false
+      }
+    ],
+    "required_info": ["디자인 목적", "사용 채널", "마감 일정", "참고 자료"],
+    "sla": "간단한 수정: 2일, 신규 디자인: 1주일",
+    "operating_hours": "평일 10:00-18:00",
+    "escalation": "긴급 요청은 디자인팀 리드와 사전 협의",
+    "related_policies": [],
+    "last_reviewed": "2025-09-01",
+    "tags": ["디자인", "브랜드", "마케팅", "소재"]
+  },
+  {
+    "id": "sales-support",
+    "slug": "sales-support",
+    "title": "영업 지원 서비스",
+    "description": "고객 문의 처리, 제안서 작성 지원, 영업 데이터 분석",
+    "department": "SALES",
+    "owner_dept": "SALES",
+    "contact_person": "송지훈",
+    "target_audience": "영업팀, 고객성공팀",
+    "prerequisites": "없음",
+    "request_channels": [
+      {
+        "type": "슬랙",
+        "description": "#sales-support 채널",
+        "preferred": true
+      },
+      {
+        "type": "CRM",
+        "description": "고객 관리 시스템",
+        "preferred": false
+      }
+    ],
+    "required_info": ["고객 정보", "요청 내용", "우선순위", "마감 일정"],
+    "sla": "고객 문의: 24시간, 제안서 지원: 3영업일",
+    "operating_hours": "평일 09:00-18:00",
+    "escalation": "VIP 고객 문의는 영업팀 매니저에게 즉시 전달",
+    "related_policies": [],
+    "last_reviewed": "2025-08-25",
+    "tags": ["영업", "고객", "제안서", "지원"]
+  }
+]

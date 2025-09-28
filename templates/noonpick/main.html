@@ -1,0 +1,444 @@
+{% extends "sidebar_base.html" %}
+
+{% block content %}
+<div class="container-fluid h-100">
+  <div class="row h-100">
+    <!-- 필터 패널 -->
+    <div class="col-md-4 col-lg-3 p-3 border-end">
+      <h4 class="mb-3">🍽️ {{ t('services.noonpick') }}</h4>
+      <p class="text-muted small mb-4">{{ t('noonpick.subtitle') }}</p>
+      
+      <form id="filterForm">
+        <!-- 오피스 선택 -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{{ t('noonpick.office') }}</label>
+          <select class="form-select" id="office" name="office">
+            {% for office in offices %}
+            <option value="{{ office.code }}" {% if office.code == 'seoul' %}selected{% endif %}>
+              {{ office.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 반경 선택 -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{{ t('noonpick.radius') }}</label>
+          <div class="btn-group w-100" role="group">
+            <input type="radio" class="btn-check" name="radius" id="radius100" value="100">
+            <label class="btn btn-outline-primary" for="radius100">100m</label>
+            
+            <input type="radio" class="btn-check" name="radius" id="radius200" value="200">
+            <label class="btn btn-outline-primary" for="radius200">200m</label>
+            
+            <input type="radio" class="btn-check" name="radius" id="radius300" value="300" checked>
+            <label class="btn btn-outline-primary" for="radius300">300m</label>
+            
+            <input type="radio" class="btn-check" name="radius" id="radius500" value="500">
+            <label class="btn btn-outline-primary" for="radius500">500m</label>
+          </div>
+        </div>
+
+        <!-- 카테고리 선택 -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{{ t('noonpick.category') }} <small class="text-muted">({{ t('noonpick.multiple_selection') }})</small></label>
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="KOREAN" id="catKorean">
+                <label class="form-check-label" for="catKorean">{{ t('noonpick.korean') }}</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="CHINESE" id="catChinese">
+                <label class="form-check-label" for="catChinese">{{ t('noonpick.chinese') }}</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="JAPANESE" id="catJapanese">
+                <label class="form-check-label" for="catJapanese">{{ t('noonpick.japanese') }}</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="WESTERN" id="catWestern">
+                <label class="form-check-label" for="catWestern">{{ t('noonpick.western') }}</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="MEAT" id="catMeat">
+                <label class="form-check-label" for="catMeat">{{ t('noonpick.meat') }}</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="SOUP" id="catSoup">
+                <label class="form-check-label" for="catSoup">{{ t('noonpick.soup') }}</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="NOODLE" id="catNoodle">
+                <label class="form-check-label" for="catNoodle">{{ t('noonpick.noodle') }}</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="RICE" id="catRice">
+                <label class="form-check-label" for="catRice">{{ t('noonpick.rice') }}</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="CAFE" id="catCafe">
+                <label class="form-check-label" for="catCafe">{{ t('noonpick.cafe') }}</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 날씨 영향 (향후 구현) -->
+        <div class="mb-4">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="weatherToggle" disabled>
+            <label class="form-check-label text-muted" for="weatherToggle">
+              날씨 영향 반영 <small>(준비중)</small>
+            </label>
+          </div>
+        </div>
+
+        <!-- 추천 버튼 -->
+        <button type="button" class="btn btn-primary w-100 py-2 mb-3" id="recommendBtn">
+          🎯 {{ t('noonpick.recommend') }}
+        </button>
+
+        <!-- 다시 돌리기 버튼 -->
+        <button type="button" class="btn btn-outline-secondary w-100" id="reshuffleBtn" style="display: none;">
+          🎲 {{ t('noonpick.reshuffle') }}
+        </button>
+      </form>
+    </div>
+
+    <!-- 지도 및 결과 패널 -->
+    <div class="col-md-8 col-lg-9 p-0 d-flex flex-column">
+      <!-- 지도 -->
+      <div id="map" style="height: 50%; min-height: 300px;"></div>
+      
+      <!-- 결과 카드 -->
+      <div class="flex-fill p-3 overflow-auto" id="resultsPanel">
+        <div id="loadingSpinner" class="text-center py-5" style="display: none;">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2 text-muted">맛있는 곳을 찾고 있어요...</p>
+        </div>
+
+        <div id="welcomeMessage" class="text-center py-5 text-muted">
+          <h5>🍽️ {{ t('noonpick.welcome_title') }}</h5>
+          <p>{{ t('noonpick.welcome_message') }}</p>
+        </div>
+
+        <div id="resultsContainer" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 카카오 지도 API -->
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_js_key }}"></script>
+
+<script>
+let map;
+let markers = [];
+let excludedIds = [];
+
+// 지도 초기화
+function initMap() {
+  const container = document.getElementById('map');
+  const options = {
+    center: new kakao.maps.LatLng(37.5093056, 127.0610611), // 서울 오피스 정확한 좌표
+    level: 3
+  };
+  map = new kakao.maps.Map(container, options);
+}
+
+// 마커 제거
+function clearMarkers() {
+  markers.forEach(marker => marker.setMap(null));
+  markers = [];
+}
+
+// 마커 추가
+function addMarker(lat, lng, title, isPrimary = false) {
+  const position = new kakao.maps.LatLng(lat, lng);
+  const marker = new kakao.maps.Marker({
+    position: position,
+    title: title
+  });
+  
+  marker.setMap(map);
+  markers.push(marker);
+  
+  // 인포윈도우
+  const infowindow = new kakao.maps.InfoWindow({
+    content: `<div style="padding:5px;font-size:12px;text-align:center;">${title}</div>`
+  });
+  
+  kakao.maps.event.addListener(marker, 'mouseover', function() {
+    infowindow.open(map, marker);
+  });
+  
+  kakao.maps.event.addListener(marker, 'mouseout', function() {
+    infowindow.close();
+  });
+  
+  return marker;
+}
+
+// 필터 데이터 수집
+function getFilterData() {
+  const office = document.getElementById('office').value;
+  const radius = document.querySelector('input[name="radius"]:checked').value;
+  const categories = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => cb.value)
+    .filter(val => val !== 'on'); // 날씨 토글 제외
+  
+  return { office, radius, categories };
+}
+
+// 카테고리 배지 생성
+function getCategoryBadge(categories) {
+  if (!categories || categories.length === 0) return '';
+  
+  const categoryNames = {
+    'KOREAN': '한식', 'CHINESE': '중식', 'JAPANESE': '일식', 'WESTERN': '양식',
+    'MEAT': '고기', 'SOUP': '국·탕', 'NOODLE': '면', 'RICE': '덮밥', 'CAFE': '카페'
+  };
+  
+  return categories.slice(0, 2).map(cat => 
+    `<span class="badge bg-secondary me-1">${categoryNames[cat] || cat}</span>`
+  ).join('');
+}
+
+// 이미지 HTML 생성 함수
+function createImageHtml(placeImage, placeName) {
+  if (placeImage) {
+    return `<img src="${placeImage}" class="img-fluid rounded" alt="${placeName}" style="height:150px;object-fit:cover;width:100%;" onerror="handleImageError(this)">`;
+  } else {
+    return `<div class="bg-light rounded d-flex align-items-center justify-content-center" style="height:150px;">
+              <span class="text-muted">🍽️</span>
+            </div>`;
+  }
+}
+
+// 이미지 로드 실패 처리 함수
+function handleImageError(imgElement) {
+  imgElement.parentElement.innerHTML = '<div class="bg-light rounded d-flex align-items-center justify-content-center" style="height:150px;"><span class="text-muted">🍽️</span></div>';
+}
+
+// 결과 카드 생성
+function createPlaceCard(place, isPrimary = false) {
+  const ogTitle = place.og?.title || place.name;
+  const ogDesc = place.og?.description || '';
+  // 사진 우선순위: 음식점 사진 > OG 이미지 > 기본 아이콘
+  const placeImage = place.photo_url || place.og?.image || '';
+  
+  const categories = JSON.parse(place.big_categories || '[]');
+  const categoryBadges = getCategoryBadge(categories);
+  
+  const cardClass = isPrimary ? 'border-primary' : 'border-light';
+  const headerClass = isPrimary ? 'bg-primary text-white' : 'bg-light';
+  const headerText = isPrimary ? '🎯 추천 맛집' : '📍 대안 맛집';
+  
+  return `
+    <div class="card mb-3 ${cardClass}">
+      <div class="card-header ${headerClass} py-2">
+        <small class="fw-bold">${headerText}</small>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3">
+            ${createImageHtml(placeImage, place.name)}
+          </div>
+          <div class="col-md-9">
+            <h6 class="card-title mb-1">${ogTitle}</h6>
+            ${ogDesc ? `<p class="card-text small text-muted mb-2">${ogDesc.substring(0, 100)}${ogDesc.length > 100 ? '...' : ''}</p>` : ''}
+            <p class="card-text small mb-2">
+              📍 ${place.address || place.road_address || '주소 정보 없음'}<br>
+              📏 ${place.distance_m}m · ${categoryBadges}
+              ${place.phone ? `<br>📞 ${place.phone}` : ''}
+            </p>
+            <div class="d-flex gap-2">
+              <a href="${place.kakao_place_url}" target="_blank" class="btn btn-outline-primary btn-sm">
+                🔍 가게 상세보기
+              </a>
+              <button class="btn btn-success btn-sm" onclick="recordVisit(${place.id})">
+                ✅ 선택
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 점심 추천 요청
+async function getRecommendation() {
+  const { office, radius, categories } = getFilterData();
+  
+  document.getElementById('loadingSpinner').style.display = 'block';
+  document.getElementById('welcomeMessage').style.display = 'none';
+  document.getElementById('resultsContainer').style.display = 'none';
+  
+  try {
+    const params = new URLSearchParams({
+      office: office,
+      radius: radius,
+      cats: categories.join(','),
+      exclude: excludedIds.join(',')
+    });
+    
+    const response = await fetch(`/api/lunch/reco?${params}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || '추천 요청 실패');
+    }
+    
+    // 지도 업데이트
+    clearMarkers();
+    if (data.primary) {
+      addMarker(data.primary.lat, data.primary.lng, data.primary.name, true);
+      map.setCenter(new kakao.maps.LatLng(data.primary.lat, data.primary.lng));
+    }
+    
+    data.alternatives?.forEach(place => {
+      addMarker(place.lat, place.lng, place.name, false);
+    });
+    
+    // 결과 카드 표시
+    let html = createPlaceCard(data.primary, true);
+    data.alternatives?.forEach(place => {
+      html += createPlaceCard(place, false);
+    });
+    
+    document.getElementById('resultsContainer').innerHTML = html;
+    document.getElementById('resultsContainer').style.display = 'block';
+    document.getElementById('reshuffleBtn').style.display = 'block';
+    
+    // 제외 목록 업데이트
+    excludedIds = data.excluded_suggestion || [];
+    
+  } catch (error) {
+    alert('추천 요청 중 오류가 발생했습니다: ' + error.message);
+  } finally {
+    document.getElementById('loadingSpinner').style.display = 'none';
+  }
+}
+
+// 방문 기록
+async function recordVisit(placeId) {
+  try {
+    const response = await fetch('/api/lunch/visit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        place_id: placeId,
+        user_id: 1
+      })
+    });
+    
+    if (response.ok) {
+      alert('선택이 기록되었습니다! 맛있게 드세요 🍽️');
+    }
+  } catch (error) {
+    console.error('방문 기록 실패:', error);
+  }
+}
+
+// 이벤트 리스너
+document.addEventListener('DOMContentLoaded', function() {
+  initMap();
+  
+  document.getElementById('recommendBtn').addEventListener('click', getRecommendation);
+  document.getElementById('reshuffleBtn').addEventListener('click', getRecommendation);
+});
+</script>
+
+<style>
+.card {
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.form-check-input:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.btn-group .btn-check:checked + .btn {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: white;
+}
+
+/* 다크모드 스타일 */
+[data-theme="dark"] .form-select {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .form-select:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .form-check-input {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .form-check-input:checked {
+  background-color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .form-check-label {
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .btn-outline-primary {
+  color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .btn-outline-primary:hover {
+  background-color: #0d6efd !important;
+  border-color: #0d6efd !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+  color: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+}
+</style>
+{% endblock %}

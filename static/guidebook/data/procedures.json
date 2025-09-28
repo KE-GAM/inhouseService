@@ -1,0 +1,261 @@
+[
+  {
+    "id": "leave-apply",
+    "slug": "leave-apply",
+    "title": "연차/반차 신청 절차",
+    "short_summary": "포털에서 D-1 18:00까지 신청, 팀장→HR 순서로 승인",
+    "owner_dept": "HR",
+    "doc_owner": "한지원",
+    "last_reviewed": "2025-09-01",
+    "tags": ["연차", "반차", "휴가", "신청", "승인"],
+    "sla": "신청 후 24시간 이내 1차 승인, 48시간 이내 최종 처리",
+    "required_documents": ["신청서(포털 자동생성)"],
+    "steps": [
+      {
+        "step": 1,
+        "title": "포털 접속",
+        "description": "회사 포털 > 근태 > 휴가신청 메뉴로 이동",
+        "anchor": "portal-access"
+      },
+      {
+        "step": 2,
+        "title": "신청서 작성",
+        "description": "휴가 종류(연차/반차), 사용 날짜, 사유 입력",
+        "anchor": "form-fill"
+      },
+      {
+        "step": 3,
+        "title": "신청 제출",
+        "description": "D-1 18:00 마감시간 준수하여 제출",
+        "anchor": "submit"
+      },
+      {
+        "step": 4,
+        "title": "팀장 승인",
+        "description": "팀장이 업무 스케줄 확인 후 승인/반려",
+        "anchor": "manager-approval"
+      },
+      {
+        "step": 5,
+        "title": "HR 최종 처리",
+        "description": "HR팀에서 연차 잔여일수 확인 후 최종 승인",
+        "anchor": "hr-final"
+      }
+    ],
+    "exceptions": [
+      "당일 신청: 반차만 가능, 팀장 사전 승인 필요",
+      "긴급 상황: 사후 신청 가능, 증빙 자료 제출"
+    ],
+    "contact": "#ask-hr 채널 (10:00-17:00)",
+    "related_policies": [
+      {
+        "title": "연차 및 휴가 규정",
+        "url": "/guidebook/policies/annual-leave"
+      }
+    ]
+  },
+  {
+    "id": "expense-claim",
+    "slug": "expense-claim",
+    "title": "업무 경비 신청 절차",
+    "short_summary": "발생일로부터 30일 이내 포털 신청, 영수증 첨부 필수",
+    "owner_dept": "FIN",
+    "doc_owner": "권지훈",
+    "last_reviewed": "2025-08-30",
+    "tags": ["경비", "출장비", "영수증", "신청"],
+    "sla": "10만원 이하: 3영업일, 10만원 초과: 5영업일",
+    "required_documents": ["영수증 원본 또는 전자영수증", "사용 목적 설명"],
+    "steps": [
+      {
+        "step": 1,
+        "title": "영수증 수집",
+        "description": "업무 관련 지출의 영수증을 보관",
+        "anchor": "receipt-collect"
+      },
+      {
+        "step": 2,
+        "title": "포털 접속",
+        "description": "회사 포털 > 재무 > 경비신청 메뉴 이동",
+        "anchor": "portal-access"
+      },
+      {
+        "step": 3,
+        "title": "경비 정보 입력",
+        "description": "지출 날짜, 금액, 사용 목적, 프로젝트 코드 입력",
+        "anchor": "expense-info"
+      },
+      {
+        "step": 4,
+        "title": "영수증 첨부",
+        "description": "스캔 또는 사진으로 영수증 파일 업로드",
+        "anchor": "receipt-upload"
+      },
+      {
+        "step": 5,
+        "title": "승인 요청",
+        "description": "10만원 이하: 팀장 승인, 초과: 팀장+재무팀 승인",
+        "anchor": "approval-request"
+      },
+      {
+        "step": 6,
+        "title": "지급 처리",
+        "description": "승인 완료 후 다음 급여일에 일괄 지급",
+        "anchor": "payment"
+      }
+    ],
+    "exceptions": [
+      "30일 초과 신청: 사유서 작성 필요, 재무팀 판단에 따라 승인",
+      "법인카드 사용 시: 영수증만 제출, 별도 신청 불필요"
+    ],
+    "contact": "finance@nota.ai",
+    "related_policies": [
+      {
+        "title": "경비 및 출장비 규정",
+        "url": "/guidebook/policies/expense-policy"
+      }
+    ]
+  },
+  {
+    "id": "new-employee-onboarding",
+    "slug": "new-employee-onboarding",
+    "title": "신입사원 온보딩 절차",
+    "short_summary": "입사 첫날부터 한 달간의 단계별 온보딩 프로세스",
+    "owner_dept": "HR",
+    "doc_owner": "임지우",
+    "last_reviewed": "2025-08-15",
+    "tags": ["신입사원", "온보딩", "교육", "멘토링"],
+    "sla": "1개월 완료, 주간 체크인 실시",
+    "required_documents": ["신원보증서", "건강진단서", "계약서", "개인정보동의서"],
+    "steps": [
+      {
+        "step": 1,
+        "title": "입사 준비 (D-7)",
+        "description": "필요 서류 준비, 시스템 계정 생성, 장비 할당",
+        "anchor": "pre-boarding"
+      },
+      {
+        "step": 2,
+        "title": "첫날 오리엔테이션",
+        "description": "회사 소개, 규정 안내, 시설 투어, IT 장비 지급",
+        "anchor": "first-day"
+      },
+      {
+        "step": 3,
+        "title": "부서 배치 (1주차)",
+        "description": "팀 소개, 멘토 배정, 업무 가이드 제공",
+        "anchor": "team-assignment"
+      },
+      {
+        "step": 4,
+        "title": "교육 및 멘토링 (2-3주차)",
+        "description": "업무 관련 교육, 멘토와 정기 미팅",
+        "anchor": "training"
+      },
+      {
+        "step": 5,
+        "title": "성과 리뷰 (4주차)",
+        "description": "초기 적응도 평가, 피드백 수집, 추가 지원 계획",
+        "anchor": "review"
+      }
+    ],
+    "exceptions": [
+      "원격 근무자: 온라인 오리엔테이션 별도 실시",
+      "인턴십 전환: 기존 근무 경험 고려하여 단축 가능"
+    ],
+    "contact": "#ask-hr 채널",
+    "related_policies": []
+  },
+  {
+    "id": "meeting-room-booking",
+    "slug": "meeting-room-booking",
+    "title": "회의실 예약 및 사용 절차",
+    "short_summary": "Booker 시스템 또는 캘린더를 통한 회의실 예약 방법",
+    "owner_dept": "OPS",
+    "doc_owner": "정하준",
+    "last_reviewed": "2025-09-10",
+    "tags": ["회의실", "예약", "시설", "운영"],
+    "sla": "즉시 예약 가능, 당일 예약 허용",
+    "required_documents": ["없음"],
+    "steps": [
+      {
+        "step": 1,
+        "title": "예약 시스템 접속",
+        "description": "Desk & Room Booker 서비스 또는 구글 캘린더 이용",
+        "anchor": "system-access"
+      },
+      {
+        "step": 2,
+        "title": "회의실 선택",
+        "description": "인원수, 장비, 위치를 고려하여 적절한 회의실 선택",
+        "anchor": "room-selection"
+      },
+      {
+        "step": 3,
+        "title": "시간 예약",
+        "description": "사용 시간 입력, 중복 예약 확인",
+        "anchor": "time-booking"
+      },
+      {
+        "step": 4,
+        "title": "회의실 사용",
+        "description": "예약 시간에 맞춰 사용, 정리정돈 후 퇴실",
+        "anchor": "room-usage"
+      }
+    ],
+    "exceptions": [
+      "장기 예약: 반복 사용 시 운영팀에 사전 문의",
+      "대형 이벤트: 전체 층 사용 시 사전 협의 필요"
+    ],
+    "contact": "#ask-ops 채널",
+    "related_policies": []
+  },
+  {
+    "id": "password-reset",
+    "slug": "password-reset",
+    "title": "시스템 비밀번호 재설정 절차",
+    "short_summary": "포털 계정 및 시스템 비밀번호 분실 시 복구 방법",
+    "owner_dept": "IT",
+    "doc_owner": "서재현",
+    "last_reviewed": "2025-09-15",
+    "tags": ["비밀번호", "계정", "보안", "재설정"],
+    "sla": "자동 재설정: 즉시, 수동 처리: 2시간 이내",
+    "required_documents": ["신분증 (수동 처리 시)"],
+    "steps": [
+      {
+        "step": 1,
+        "title": "자동 재설정 시도",
+        "description": "포털 로그인 화면에서 '비밀번호 찾기' 클릭",
+        "anchor": "auto-reset"
+      },
+      {
+        "step": 2,
+        "title": "이메일 확인",
+        "description": "등록된 이메일로 재설정 링크 발송",
+        "anchor": "email-check"
+      },
+      {
+        "step": 3,
+        "title": "새 비밀번호 설정",
+        "description": "보안 정책에 따라 새 비밀번호 설정",
+        "anchor": "new-password"
+      },
+      {
+        "step": 4,
+        "title": "수동 처리 (필요 시)",
+        "description": "자동 재설정 실패 시 IT팀에 직접 요청",
+        "anchor": "manual-reset"
+      }
+    ],
+    "exceptions": [
+      "이메일 변경: 신분증 지참하여 IT팀 직접 방문",
+      "긴급 상황: 유선으로 본인 확인 후 임시 비밀번호 발급"
+    ],
+    "contact": "#ask-it 채널 또는 it@nota.ai",
+    "related_policies": [
+      {
+        "title": "정보보안 규정",
+        "url": "/guidebook/policies/security-policy"
+      }
+    ]
+  }
+]

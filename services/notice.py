@@ -9,7 +9,7 @@ bp = Blueprint('notice', __name__)
 def list_ann():
     db = get_db()
     rows = db.execute('SELECT author, text, created_at FROM announcements ORDER BY created_at DESC').fetchall()
-    return render_template('notice/list.html', rows=rows, active='notice', user={'email': 'nota_inhouse@nota.ai'})
+    return render_template('notice/list.html', rows=rows, active='notice', user={'email': 'lwk9589@gmail.com', 'name': '이원규', 'org_name': 'Service Architect', 'title': 'Developer', 'is_admin': True})
 
 @bp.route('/notice/new', methods=['POST'])
 def new_ann():

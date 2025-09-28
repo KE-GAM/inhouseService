@@ -1,22 +1,693 @@
-
 {% extends "sidebar_base.html" %}
 {% block content %}
-<h2>Report-It 현황</h2>
-<table class="table table-hover">
-  <thead><tr><th>ID</th><th>자산</th><th>분류</th><th>설명</th><th>상태</th><th>접수</th></tr></thead>
-  <tbody>
-  {% for t in rows %}
-    <tr>
-      <td>{{ t['id'] }}</td>
-      <td>{{ t['asset_id'] }}</td>
-      <td>{{ t['category'] }}</td>
-      <td>{{ t['desc'] }}</td>
-      <td>{{ t['status'] }}</td>
-      <td>{{ t['created_at'] }}</td>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-clipboard-list"></i> {{ t('services.report') }} {{ t('report.issue_status') }}</h2>
+  <div class="d-flex gap-2">
+    <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#newIssueModal">
+      <i class="fas fa-plus"></i> {{ t('report.manual_registration') }}
+    </a>
+    <button class="btn btn-sm btn-outline-primary" onclick="refreshIssues()">
+      <i class="fas fa-sync-alt"></i> {{ t('common.refresh') }}
+    </button>
+  </div>
+</div>
+
+<!-- 필터 섹션 -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-2">
+        <label class="form-label">{{ t('report.location') }}</label>
+        <select class="form-select form-select-sm" id="filterLocation">
+          <option value="">{{ t('common.all') }}</option>
+          <option value="Ownership">Ownership</option>
+          <option value="Trust">Trust</option>
+          <option value="Focus-A">Focus-A</option>
+          <option value="Lounge">Lounge</option>
+          <option value="SnackBar">Snack Bar</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">{{ t('report.status') }}</label>
+        <select class="form-select form-select-sm" id="filterStatus">
+          <option value="">{{ t('common.all') }}</option>
+          <option value="OPEN">{{ t('report.received') }}</option>
+          <option value="IN_PROGRESS">{{ t('report.in_progress') }}</option>
+          <option value="DONE">{{ t('report.completed') }}</option>
+          <option value="CANNOT_FIX">{{ t('report.cannot_fix') }}</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">{{ t('report.type') }}</label>
+        <select class="form-select form-select-sm" id="filterType">
+          <option value="">{{ t('common.all') }}</option>
+          <option value="고장">고장</option>
+          <option value="파손">파손</option>
+          <option value="성능저하">성능저하</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">{{ t('report.search') }}</label>
+        <input type="text" class="form-control form-control-sm" id="searchKeyword" placeholder="{{ t('report.search_placeholder') }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">&nbsp;</label>
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="applyFilters()">
+            <i class="fas fa-search"></i> {{ t('report.search') }}
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+            <i class="fas fa-times"></i> {{ t('report.reset') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 이슈 목록 -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between">
+    <span><strong id="issueCount">0</strong>{{ t('report.issues_count') }}</span>
+    <div class="d-flex gap-2">
+      <div class="legend">
+        <span class="badge bg-light text-dark">{{ t('report.received') }}</span>
+        <span class="badge bg-warning">{{ t('report.in_progress') }}</span>
+        <span class="badge bg-success">{{ t('report.completed') }}</span>
+        <span class="badge bg-danger">{{ t('report.cannot_fix') }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 12%">{{ t('report.location') }}</th>
+            <th style="width: 12%">{{ t('report.reported_date') }}</th>
+            <th style="width: 20%">{{ t('report.issue_name') }}</th>
+            <th style="width: 10%">{{ t('report.type') }}</th>
+            <th style="width: 12%">{{ t('report.status') }}</th>
+            <th style="width: 15%">{{ t('report.reporter') }}</th>
+            <th style="width: 8%">{{ t('report.attachment') }}</th>
+            <th style="width: 8%">{{ t('report.comment') }}</th>
+            <th style="width: 3%"></th>
+          </tr>
+        </thead>
+        <tbody id="issueTableBody">
+          <tr>
+            <td colspan="9" class="text-center py-4">
+              <div class="spinner-border spinner-border-sm" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              이슈 목록을 불러오는 중...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 이슈 상세 모달 -->
+<div class="modal fade" id="issueDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">이슈 상세 정보</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="issueDetailContent">
+        <!-- 동적으로 로드됨 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 수동 등록 모달 -->
+<div class="modal fade" id="newIssueModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">수동 이슈 등록</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="newIssueForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">장소</label>
+            <select class="form-select" name="location_id" required>
+              <option value="">선택하세요</option>
+              <option value="Ownership">Ownership</option>
+              <option value="Trust">Trust</option>
+              <option value="Focus-A">Focus-A</option>
+              <option value="Lounge">Lounge</option>
+              <option value="SnackBar">Snack Bar</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">이슈 발생 시설/장비</label>
+            <input type="text" class="form-control" name="title" required placeholder="예: 프로젝터, 프린터A">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">이슈 종류</label>
+            <select class="form-select" name="type" required>
+              <option value="">선택하세요</option>
+              <option value="고장">고장</option>
+              <option value="파손">파손</option>
+              <option value="성능저하">성능저하</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">이슈 내용</label>
+            <textarea class="form-control" name="description" rows="3" required placeholder="문제 상황을 상세히 설명해주세요"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">신고자 이메일</label>
+            <input type="email" class="form-control" name="reporter_email" placeholder="선택사항">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+          <button type="submit" class="btn btn-primary">등록</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentUser = {{ user|tojson }};
+let isManager = currentUser.name && currentUser.name.includes('관리자');
+
+// 페이지 로드 시 이슈 목록 로드
+document.addEventListener('DOMContentLoaded', function() {
+  loadIssues();
+});
+
+// 이슈 목록 로드
+async function loadIssues(filters = {}) {
+  try {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+    
+    const response = await fetch(`/api/issues?${params}`);
+    const issues = await response.json();
+    
+    displayIssues(issues);
+    document.getElementById('issueCount').textContent = issues.length;
+  } catch (error) {
+    console.error('이슈 로드 실패:', error);
+    showError('이슈 목록을 불러오는데 실패했습니다.');
+  }
+}
+
+// 이슈 목록 표시
+function displayIssues(issues) {
+  const tbody = document.getElementById('issueTableBody');
+  
+  if (issues.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">이슈가 없습니다.</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = issues.map(issue => `
+    <tr class="issue-row" data-issue-id="${issue.id}" onclick="showIssueDetail(${issue.id})">
+      <td>
+        <strong>${issue.location_id}</strong>
+        ${issue.reporter_email === currentUser.email ? '<span class="badge bg-primary ms-1">✓ 내 신고</span>' : ''}
+      </td>
+      <td>${formatDate(issue.reported_at)}</td>
+      <td>
+        <strong>${issue.title}</strong>
+        ${issue.description ? `<br><small class="text-muted">${truncateText(issue.description, 50)}</small>` : ''}
+      </td>
+      <td><span class="badge bg-light text-dark">${issue.type}</span></td>
+      <td><span class="badge ${getStatusBadgeClass(issue.status)}">${issue.status_label}</span></td>
+      <td>${issue.reporter_email ? issue.reporter_email.split('@')[0] : '알 수 없음'}</td>
+      <td>
+        ${issue.attachment_count > 0 ? `<i class="fas fa-paperclip text-primary"></i> ${issue.attachment_count}` : '-'}
+      </td>
+      <td>
+        ${issue.comment_count > 0 ? `<i class="fas fa-comment text-info"></i> ${issue.comment_count}` : '-'}
+      </td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showIssueDetail(${issue.id})">
+          <i class="fas fa-eye"></i>
+        </button>
+      </td>
     </tr>
-  {% else %}
-    <tr><td colspan="6" class="text-muted">아직 신고가 없습니다.</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+  `).join('');
+}
+
+// 이슈 상세 정보 표시
+async function showIssueDetail(issueId) {
+  try {
+    const response = await fetch(`/api/issues/${issueId}`);
+    const issue = await response.json();
+    
+    const modal = new bootstrap.Modal(document.getElementById('issueDetailModal'));
+    document.getElementById('issueDetailContent').innerHTML = renderIssueDetail(issue);
+    modal.show();
+  } catch (error) {
+    console.error('이슈 상세 로드 실패:', error);
+    showError('이슈 상세 정보를 불러오는데 실패했습니다.');
+  }
+}
+
+// 이슈 상세 렌더링
+function renderIssueDetail(issue) {
+  return `
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <strong>장소:</strong> ${issue.location_id}
+      </div>
+      <div class="col-md-6">
+        <strong>상태:</strong> <span class="badge ${getStatusBadgeClass(issue.status)}">${issue.status_label}</span>
+      </div>
+    </div>
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <strong>이슈명:</strong> ${issue.title}
+      </div>
+      <div class="col-md-6">
+        <strong>종류:</strong> ${issue.type}
+      </div>
+    </div>
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <strong>접수일:</strong> ${formatDateTime(issue.reported_at)}
+      </div>
+      <div class="col-md-6">
+        <strong>신고자:</strong> ${issue.reporter_email || '알 수 없음'}
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <strong>상세 내용:</strong>
+      <div class="border rounded p-3 mt-2 bg-light">
+        ${issue.description || '설명이 없습니다.'}
+      </div>
+    </div>
+    
+    ${issue.attachments.length > 0 ? `
+      <div class="mb-3">
+        <strong>첨부 파일:</strong>
+        <div class="mt-2">
+          ${issue.attachments.map(att => `
+            <div class="d-flex align-items-center mb-1">
+              <i class="fas fa-paperclip text-primary me-2"></i>
+              <a href="${att.url}" target="_blank" class="text-decoration-none">${att.url}</a>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+    
+    ${isManager ? `
+      <div class="mb-3">
+        <strong>상태 관리:</strong>
+        <div class="mt-2">
+          <button class="btn btn-sm btn-warning me-2" onclick="updateStatus(${issue.id}, 'IN_PROGRESS')">조치 중</button>
+          <button class="btn btn-sm btn-success me-2" onclick="updateStatus(${issue.id}, 'DONE')">조치 완료</button>
+          <button class="btn btn-sm btn-danger" onclick="updateStatus(${issue.id}, 'CANNOT_FIX')">조치 불가</button>
+        </div>
+      </div>
+    ` : ''}
+    
+    <div class="mb-3">
+      <strong>시설 관리자 코멘트:</strong>
+      <div class="mt-2" style="max-height: 200px; overflow-y: auto;">
+        ${issue.comments.length > 0 ? 
+          issue.comments.map(comment => `
+            <div class="border rounded p-2 mb-2 ${comment.source === 'auto_merge' ? 'bg-warning bg-opacity-10' : 'bg-light'}">
+              <small class="text-muted">${comment.author || '알 수 없음'} • ${formatDateTime(comment.created_at)}</small>
+              <div class="mt-1">${comment.body}</div>
+            </div>
+          `).join('') : 
+          '<div class="text-muted">코멘트가 없습니다.</div>'
+        }
+      </div>
+      ${isManager ? `
+        <div class="mt-2">
+          <div class="input-group">
+            <textarea class="form-control" id="newComment${issue.id}" placeholder="코멘트를 입력하세요..."></textarea>
+            <button class="btn btn-primary" onclick="addComment(${issue.id})">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+    
+    ${issue.status_history.length > 0 ? `
+      <div class="mb-3">
+        <strong>상태 이력:</strong>
+        <div class="mt-2" style="max-height: 150px; overflow-y: auto;">
+          ${issue.status_history.map(history => `
+            <div class="d-flex justify-content-between border-bottom pb-1 mb-1">
+              <span><span class="badge ${getStatusBadgeClass(history.status)}">${getStatusLabel(history.status)}</span></span>
+              <small class="text-muted">${history.actor || '시스템'} • ${formatDateTime(history.changed_at)}</small>
+            </div>
+            ${history.memo ? `<div class="text-muted small mb-2">${history.memo}</div>` : ''}
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+  `;
+}
+
+// 상태 업데이트
+async function updateStatus(issueId, newStatus) {
+  const memo = prompt('변경 사유를 입력하세요 (선택사항):');
+  if (memo === null) return; // 취소
+  
+  try {
+    const response = await fetch(`/api/issues/${issueId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        status: newStatus, 
+        actor: currentUser.name || '시설관리자',
+        memo: memo || ''
+      })
+    });
+    
+    if (response.ok) {
+      showSuccess('상태가 업데이트되었습니다.');
+      setTimeout(() => {
+        bootstrap.Modal.getInstance(document.getElementById('issueDetailModal')).hide();
+        loadIssues();
+      }, 1000);
+    } else {
+      throw new Error('상태 업데이트 실패');
+    }
+  } catch (error) {
+    console.error('상태 업데이트 실패:', error);
+    showError('상태 업데이트에 실패했습니다.');
+  }
+}
+
+// 코멘트 추가
+async function addComment(issueId) {
+  const body = document.getElementById(`newComment${issueId}`).value.trim();
+  if (!body) {
+    alert('코멘트를 입력해주세요.');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/api/issues/${issueId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        body: body, 
+        author: currentUser.name || '시설관리자'
+      })
+    });
+    
+    if (response.ok) {
+      showSuccess('코멘트가 추가되었습니다.');
+      showIssueDetail(issueId); // 다시 로드
+    } else {
+      throw new Error('코멘트 추가 실패');
+    }
+  } catch (error) {
+    console.error('코멘트 추가 실패:', error);
+    showError('코멘트 추가에 실패했습니다.');
+  }
+}
+
+// 필터 적용
+function applyFilters() {
+  const filters = {
+    location_id: document.getElementById('filterLocation').value,
+    status: document.getElementById('filterStatus').value,
+    type: document.getElementById('filterType').value,
+    search: document.getElementById('searchKeyword').value
+  };
+  loadIssues(filters);
+}
+
+// 필터 초기화
+function clearFilters() {
+  document.getElementById('filterLocation').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterType').value = '';
+  document.getElementById('searchKeyword').value = '';
+  loadIssues();
+}
+
+// 새로고침
+function refreshIssues() {
+  applyFilters();
+}
+
+// 수동 등록
+document.getElementById('newIssueForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData);
+  data.source = 'manual';
+  
+  try {
+    const response = await fetch('/api/issues', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer demo-token' // 임시 토큰
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (response.ok) {
+      showSuccess('이슈가 등록되었습니다.');
+      bootstrap.Modal.getInstance(document.getElementById('newIssueModal')).hide();
+      e.target.reset();
+      loadIssues();
+    } else {
+      throw new Error('등록 실패');
+    }
+  } catch (error) {
+    console.error('이슈 등록 실패:', error);
+    showError('이슈 등록에 실패했습니다.');
+  }
+});
+
+// 유틸리티 함수들
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('ko-KR');
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('ko-KR');
+}
+
+function truncateText(text, length) {
+  return text.length > length ? text.substring(0, length) + '...' : text;
+}
+
+function getStatusBadgeClass(status) {
+  const classes = {
+    'OPEN': 'bg-light text-dark',
+    'IN_PROGRESS': 'bg-warning',
+    'DONE': 'bg-success',
+    'CANNOT_FIX': 'bg-danger'
+  };
+  return classes[status] || 'bg-secondary';
+}
+
+function getStatusLabel(status) {
+  const labels = {
+    'OPEN': '접수',
+    'IN_PROGRESS': '조치 중',
+    'DONE': '조치 완료',
+    'CANNOT_FIX': '조치 불가'
+  };
+  return labels[status] || status;
+}
+
+function showSuccess(message) {
+  // 임시 알림 (실제로는 toast 라이브러리 사용 권장)
+  alert('✅ ' + message);
+}
+
+function showError(message) {
+  // 임시 알림 (실제로는 toast 라이브러리 사용 권장)
+  alert('❌ ' + message);
+}
+
+// 검색 엔터키 지원
+document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    applyFilters();
+  }
+});
+</script>
+
+<style>
+.issue-row:hover {
+  background-color: rgba(0,123,255,0.05);
+  cursor: pointer;
+}
+
+.legend .badge {
+  margin-right: 8px;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  background-color: #f8f9fa;
+}
+
+#issueDetailContent {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* 다크모드 스타일 */
+[data-theme="dark"] .form-select {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .form-select:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .form-control {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .form-control:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .form-control::placeholder {
+  color: #8b949e !important;
+}
+
+[data-theme="dark"] .table {
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .table th {
+  background-color: #1b1e1f !important;
+  color: #f0f6fc !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .table td {
+  background-color: #181a1b !important;
+  color: #f0f6fc !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+  background-color: #2d2d2d !important;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover td {
+  background-color: #2d2d2d !important;
+}
+
+[data-theme="dark"] .issue-row:hover {
+  background-color: #2d2d2d !important;
+}
+
+[data-theme="dark"] .issue-row:hover td {
+  background-color: #2d2d2d !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+  color: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-primary {
+  color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .btn-outline-primary:hover {
+  background-color: #0d6efd !important;
+  border-color: #0d6efd !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .modal-content {
+  background-color: #181a1b !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .modal-header {
+  border-bottom-color: #30363d !important;
+}
+
+[data-theme="dark"] .modal-footer {
+  border-top-color: #30363d !important;
+}
+
+[data-theme="dark"] .bg-light {
+  background-color: #1b1e1f !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .text-muted {
+  color: #8b949e !important;
+}
+
+[data-theme="dark"] .badge.bg-light {
+  background-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .border {
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .border-bottom {
+  border-bottom-color: #30363d !important;
+}
+
+[data-theme="dark"] .border.rounded {
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .input-group .form-control {
+  background-color: #181a1b !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .input-group .form-control:focus {
+  background-color: #181a1b !important;
+  border-color: #0d6efd !important;
+  color: #f0f6fc !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+</style>
 {% endblock %}
