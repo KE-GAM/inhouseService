@@ -19,3 +19,4 @@ Open http://localhost:8000/
 - 예약: 간단한 폼으로 테스트 (자원 ID는 1부터)
 - 캘린더: My/Company 탭에서 간단 등록
 - 리포트: `/report/inbound`에 JSON POST 시 유입
+- 관리자용 모니터링 대시보드
