@@ -42,12 +42,6 @@ CATEGORY_MAP = [
     ("CAFE",     ["카페","디저트","빵","베이커리"])
 ]
 
-# 환경 변수에서 API 키 로드
-KAKAO_REST_API_KEY = os.environ.get('KAKAO_REST_API_KEY', '')
-KAKAO_JAVASCRIPT_KEY = os.environ.get('KAKAO_JAVASCRIPT_KEY', '')
-OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY', '')
-GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
-
 def map_category_to_big_categories(category_name):
     """카카오 카테고리를 대분류로 매핑"""
     big_cats = []
