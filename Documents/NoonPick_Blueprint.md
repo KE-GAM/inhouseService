@@ -1,14 +1,14 @@
 # NoonPick : 정오의 선택 — 점심 추천 서비스 Blueprint
-_버전: 1.0 · 생성일: 2025-09-22 11:46:46_
+_버전: 2.0 · 생성일: 2025-09-22 11:46:46 · 업데이트: 2025-09-29_
 
 ---
 
 ## 1) 서비스 개요
 **NoonPick**은 회사 오피스 반경(100/200/300/500m) 내에서 점심 식당을 추천하는 사내용 웹 서비스입니다.  
 - **위치**: 사용자의 실시간 위치를 받지 않고, **오피스 고정 위치(Seoul/Daejeon)** 중 선택
-- **데이터 소스**: **카카오 Local API**(장소 검색/카테고리/좌표/거리/`place_url`), **OpenWeather API**(선택적 날씨 가중)
+- **데이터 소스**: **Google Places API**(장소 검색/카테고리/좌표/거리/별점/`place_id`), **OpenWeather API**(선택적 날씨 가중)
 - **UI 핵심**: 필터(오피스/반경/카테고리, 날씨 on/off) → **추천해줘!** → 지도 + 카드(썸네일/제목/설명/상세보기)  
-- **상세정보**: 법·정책 준수를 위해 **카카오 `place_url` 딥링크**를 사용. 추가로 서버는 허용 범위 내에서 **Open Graph 메타(og:title/og:description/og:image)**만 파싱하여 카드에 미리보기 표시
+- **상세정보**: **Google Maps `place_id` 딥링크**를 사용하여 정확한 가게 정보 제공. **Google API 별점 정보**를 활용한 품질 필터링(3점 미만 제외)
 
 ---
 
@@ -21,8 +21,8 @@ _버전: 1.0 · 생성일: 2025-09-22 11:46:46_
    - 날씨 영향: **On/Off** 토글
 3. **추천해줘!** 클릭 → 로딩 후 지도 + 카드 표시
 4. 카드 구성
-   - 썸네일/제목/간략 설명(OG 메타) + 거리/대분류 배지/주소
-   - **가게 상세보기(카카오)** 버튼(새 탭, `place_url`)
+   - 썸네일/제목/간략 설명 + 거리/대분류 배지/주소/별점
+   - **가게 상세보기(Google Maps)** 버튼(새 탭, `place_id` 기반 링크)
    - 하단: **선택**(방문 기록 저장) / **다시 돌리기**(같은 조건, 제외집합 추가)
 5. 사용자가 마음에 들지 않으면 **다시 돌리기**로 반복
 
@@ -32,10 +32,11 @@ _버전: 1.0 · 생성일: 2025-09-22 11:46:46_
 - **오피스 고정 위치**: 사용자 위치 수집 없음
   - Seoul: _서울특별시 강남구 테헤란로 521, 파르나스 타워 16층_
   - Daejeon: _대전광역시 유성구 문지로 272-16 502호_
-  - 최초 1회 **카카오 지오코딩**으로 lat/lng 확보 → DB `offices`에 캐싱
-- **카카오 Local API**만 사용(네이버 제외). 상세는 `place_url` 딥링크로 해결
-- **OG 메타 파싱**(허용 범위): 카드 미리보기에만 사용(원문 HTML/이미지의 저장·재배포 금지)
-- **추천 로직**: MVP에서는 **대분류 매핑 + 거리 감쇠**만 사용(가격/세부 취향 가중치 제외)
+  - 최초 1회 **Google Geocoding API**로 lat/lng 확보 → DB `offices`에 캐싱
+- **Google Places API**만 사용. 상세는 `place_id` 기반 Google Maps 딥링크로 해결
+- **실시간 검색**: 매번 Google Places API 호출로 최신 정보 보장
+- **품질 필터링**: Google API 별점 3점 미만 자동 제외
+- **추천 로직**: **대분류 매핑 + 거리 감쇠 + 별점 가중치** 사용
 - **재뽑기**: 같은 필터, 제외집합(excluded_ids) 적용
 - **방문 기록**: 선택 시 누적 → 재방문 페널티 등 향후 확장 근거
 
@@ -43,15 +44,15 @@ _버전: 1.0 · 생성일: 2025-09-22 11:46:46_
 
 ## 4) 시스템 구조
 ### 4.1 아키텍처(논리)
-- **Frontend**: React(또는 기존 템플릿) + Kakao Map JS SDK
-- **Backend**: Flask + SQLite(개발)/PostgreSQL(운영 선택), Requests + BeautifulSoup(OG 메타)
-- **External**: Kakao Local API, OpenWeather API
+- **Frontend**: Flask 템플릿 + Google Maps JS API
+- **Backend**: Flask + SQLite(개발)/PostgreSQL(운영 선택), Requests + concurrent.futures(병렬 처리)
+- **External**: Google Places API, Google Maps API, OpenWeather API
 
 ### 4.2 데이터 흐름
-1. 관리/배치: 오피스 좌표 + 반경 + 키워드로 카카오 Local 검색 → `places` **upsert 캐시**
-2. 사용자가 필터 선택 → 백엔드 `/api/lunch/reco` 호출
-3. DB에서 후보 조회 → **점수 계산** → 상위 N 가중 랜덤 → 1곳 + 대안 2곳 JSON 응답
-4. 서버는 `place_url`의 **OG 메타**를 읽어 카드에 첨부(캐시)
+1. 사용자가 필터 선택 → 백엔드 `/api/lunch/reco` 호출
+2. **실시간 Google Places API** 검색 (카테고리 + 키워드)
+3. **별점 필터링** (3점 미만 제외) → **점수 계산** → 상위 N 가중 랜덤 → 1곳 + 대안 2곳 JSON 응답
+4. **병렬 이미지 처리** (Google Places Photos + 카테고리 기반 이미지)
 5. 사용자가 **선택** → `/api/lunch/visit` 로깅
 
 ---
@@ -69,20 +70,22 @@ CREATE TABLE IF NOT EXISTS offices (
   is_default INTEGER DEFAULT 0
 );
 
--- places: 카카오 Local 캐시(반경 검색 결과)
+-- places: Google Places 캐시(실시간 검색 결과)
 CREATE TABLE IF NOT EXISTS places (
   id INTEGER PRIMARY KEY,
-  provider TEXT,            -- 'kakao'
-  provider_key TEXT,        -- place_url 해시 등 유니크 키
+  provider TEXT,            -- 'google'
+  provider_key TEXT,        -- place_id
   name TEXT,
   lat REAL, lng REAL,
-  raw_category TEXT,        -- kakao category_name
+  raw_category TEXT,        -- Google types[0]
   big_categories TEXT,      -- JSON 배열 ["KOREAN","SOUP"]
   phone TEXT,
   address TEXT,
   road_address TEXT,
   distance_m INTEGER,
-  kakao_place_url TEXT,
+  google_place_url TEXT,    -- place_id 기반 Google Maps 링크
+  rating REAL,              -- Google API 별점
+  place_id TEXT,            -- Google place_id
   last_seen_at DATETIME,
   UNIQUE(provider, provider_key)
 );
@@ -95,17 +98,15 @@ CREATE TABLE IF NOT EXISTS visits (
   visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- OG 메타 캐시(썸네일/제목/설명)
-CREATE TABLE IF NOT EXISTS og_cache (
-  url TEXT PRIMARY KEY,
-  title TEXT,
-  description TEXT,
-  image TEXT,
+-- 이미지 캐시(Google Places Photos + 카테고리 기반)
+CREATE TABLE IF NOT EXISTS image_cache (
+  place_id TEXT PRIMARY KEY,
+  photo_url TEXT,
   cached_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### 5.1 대분류 매핑(카카오 category_name → 우리 분류)
+### 5.1 대분류 매핑(Google Places types → 우리 분류)
 ```python
 CATEGORY_MAP = [
   ("KOREAN",   ["한식","국밥","찌개","백반","분식","비빔밥","국수","냉면"]),
@@ -134,16 +135,18 @@ CATEGORY_MAP = [
 ```json
 {
   "primary": {
-    "id": 123,
+    "id": "google_ChIJ...",
     "name": "불타는 김치찌개",
     "distance_m": 320,
     "big_categories": ["KOREAN","SOUP"],
-    "kakao_place_url": "https://place.map.kakao.com/...",
+    "google_place_url": "https://www.google.com/maps/place/?q=place_id:ChIJ...",
     "address": "서울 강남구 ...",
-    "og": { "title": "불타는 김치찌개", "description": "오전 11시~", "image": "http://..." }
+    "rating": 4.2,
+    "photo_url": "https://maps.googleapis.com/maps/api/place/photo?...",
+    "og": { "title": "불타는 김치찌개", "description": "서울 강남구 ... - restaurant", "image": "http://..." }
   },
   "alternatives": [{ "...": "..." }, { "...": "..." }],
-  "excluded_suggestion": [123, 456, 789]
+  "excluded_suggestion": ["google_ChIJ...", "google_ChIJ...", "google_ChIJ..."]
 }
 ```
 
@@ -153,15 +156,13 @@ CATEGORY_MAP = [
 { "place_id": 123, "user_id": 1 }
 ```
 
-### 6.3 인제스트(관리/배치)
-`POST /internal/lunch/ingest`  
-```json
-{ "office_code": "seoul", "radius": 500, "keywords": ["맛집","한식","스시","파스타","국밥","고기","카페"] }
-```
+### 6.3 인제스트(관리/배치) - 제거됨
+~~`POST /internal/lunch/ingest`~~  
+**실시간 검색으로 변경**: 더 이상 배치 인제스트가 필요하지 않음. 매 요청마다 Google Places API를 직접 호출하여 최신 정보를 보장합니다.
 
 ---
 
-## 7) 추천 로직(단순 가중치 + 가중 랜덤)
+## 7) 추천 로직(가중치 + 별점 필터링 + 가중 랜덤)
 ```python
 def distance_score(d_m: int, r_m: int) -> float:
     if d_m >= r_m: return 0.4
@@ -172,28 +173,36 @@ def category_match(place_cats, selected):
     if not selected: return 0.5  # 미선택이면 중립
     return 1.0 if set(place_cats) & set(selected) else 0.0
 
+def rating_score(rating: float) -> float:
+    if rating == 0: return 0.5  # 별점 없으면 중립
+    return min(1.0, rating / 5.0)  # 5점 만점 기준 정규화
+
 def score(place, ctx):
     cat = category_match(place.big_categories, ctx.categories)
     dist = distance_score(place.distance_m, ctx.radius)
-    return 0.6 * cat + 0.4 * dist
+    rating = rating_score(place.rating)
+    return 0.4 * cat + 0.3 * dist + 0.3 * rating
 
-# 상위 N(예: 10) → softmax(τ≈0.08)로 확률 샘플링 → 1곳 + 대안 2곳
+# 별점 3점 미만 필터링 → 상위 N(예: 10) → softmax(τ≈0.08)로 확률 샘플링 → 1곳 + 대안 2곳
 ```
 
 ---
 
-## 8) 카카오 Local 인제스터 개요
-- 키워드(예: 맛집/한식/중식/일식/양식/국밥/스시/파스타/피자/고기/카페 등)로 다중 검색
-- 응답의 `place_name/category_name/address_name/road_address_name/phone/place_url/distance` 수집
-- `place_url` 해시를 `provider_key`로 사용 → `places` **upsert**
-- `category_name` → **대분류 매핑** 후 `big_categories` 저장(JSON 배열)
+## 8) Google Places 실시간 검색 개요
+- **카테고리 검색**: `type=restaurant`로 음식점 전체 검색
+- **키워드 검색**: 선택된 카테고리별 키워드로 추가 검색 (최대 3개)
+- 응답의 `name/types/vicinity/geometry/rating/place_id` 수집
+- `place_id`를 `provider_key`로 사용 → 중복 제거
+- `types[0]` → **대분류 매핑** 후 `big_categories` 저장(JSON 배열)
+- **별점 필터링**: 3점 미만 자동 제외
 
 ---
 
-## 9) OG 메타 파싱(허용 범위)
-- 대상: **카카오 place_url** (공개 페이지)
-- 내용: `og:title`, `og:description`, `og:image` **만** 추출/캐시
-- 보안/정책: 원문 HTML/이미지의 **대량 저장·재배포 금지**. iFrame 임베드 대신 **새 탭 딥링크**
+## 9) 이미지 처리(최적화)
+- **Google Places Photos**: 상위 10개 장소에 대해 실제 가게 사진 조회
+- **카테고리 기반 이미지**: 나머지 장소는 Unsplash 고품질 이미지 사용
+- **병렬 처리**: `ThreadPoolExecutor`로 최대 3개 스레드 동시 처리
+- **캐싱**: 이미지 URL을 `image_cache` 테이블에 저장하여 재사용
 
 ---
 
@@ -201,25 +210,26 @@ def score(place, ctx):
 - **필터 바**
   - Office(Seoul/Daejeon), 반경(100/200/300/500), 카테고리(다중), 날씨 토글(후속)
 - **결과 뷰**
-  - **카카오 지도**(JS SDK): primary 마커 + 대안 2개 옅은 마커
-  - **카드**: OG 썸네일/제목/설명 + 주소/거리/배지 + **가게 상세보기(카카오)**
+  - **Google Maps**(JS API): primary 마커(빨간색) + 대안 2개 마커(파란색)
+  - **카드**: 썸네일/제목/설명 + 주소/거리/배지/별점 + **가게 상세보기(Google Maps)**
   - 버튼: **선택**(visit) / **다시 돌리기**(exclude 적용)
 
 ---
 
 ## 11) 환경 변수(.env)
 - `DATABASE=inhouse.sqlite3`
-- `KAKAO_REST_API_KEY=...` (서버에서만 사용, 프록시 호출)
+- `GOOGLE_PLACES_API_KEY=...` (서버에서만 사용, 프록시 호출)
 - `OPENWEATHER_API_KEY=...` (날씨 가중치가 필요해질 때)
 - `JSON_AS_ASCII=false`, `TEMPLATES_AUTO_RELOAD=true` 등
 
 ---
 
 ## 12) 배포/운영 포인트
-- 인제스트는 업무 시작 전/점심 전(예: 10:30/11:00) 2회 실행 추천
-- 카카오 API 쿼터 고려 → 캐시 먼저 조회, 필요 시만 동기화
-- OG 메타는 캐시 만료 정책(예: 7일)로 재갱신
+- **실시간 검색**: 매 요청마다 Google Places API 호출로 최신 정보 보장
+- Google API 쿼터 고려 → 사내용 서비스로 무료 한도 내 충분히 운용 가능
+- 이미지 캐시는 만료 정책(예: 7일)로 재갱신
 - 키 보호: 모든 외부 API는 **서버에서 호출**
+- **성능 최적화**: 병렬 처리로 응답 시간 단축 (2-3초)
 
 ---
 
@@ -230,14 +240,11 @@ def score(place, ctx):
 ---
 
 ## 14) 완료 정의(DoD, MVP)
-- [ ] 오피스 드롭다운(Seoul 기본), 반경/카테고리/날씨 토글 필터 노출
-- [ ] `/internal/lunch/ingest`로 places 캐시 구축(Seoul 500m)
-- [ ] `/api/lunch/reco` 구현(대분류+거리 점수 → 가중 랜덤)
-- [ ] 지도 + 카드(OG 썸네일/제목/설명 + 상세보기 버튼)
-- [ ] 방문 기록 `/api/lunch/visit` 저장
-- [ ] “다시 돌리기”로 같은 조건 재추천(제외집합 반영)
-
----
-
-**NoonPick : 정오의 선택** — *반경으로 고르는 사내 점심 추천*  
-문의/개발: Inhouse Platform Team · 2025
+- [x] 오피스 드롭다운(Seoul 기본), 반경/카테고리/날씨 토글 필터 노출
+- [x] **실시간 Google Places API** 검색 구현
+- [x] `/api/lunch/reco` 구현(대분류+거리+별점 점수 → 가중 랜덤)
+- [x] **Google Maps** + 카드(썸네일/제목/설명/별점 + 상세보기 버튼)
+- [x] 방문 기록 `/api/lunch/visit` 저장
+- [x] "다시 돌리기"로 같은 조건 재추천(제외집합 반영)
+- [x] **별점 필터링** (3점 미만 제외)
+- [x] **병렬 이미지 처리** (Google Places Photos + 카테고리 기반)

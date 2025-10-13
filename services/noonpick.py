@@ -4,6 +4,8 @@ import hashlib
 import requests
 import random
 import math
+import concurrent.futures
+import threading
 from datetime import datetime, timedelta
 from flask import Blueprint, request, render_template, jsonify
 from db import get_db
@@ -18,8 +20,6 @@ load_dotenv()
 def validate_api_keys():
     """API 키가 모두 설정되었는지 검증"""
     required_keys = [
-        'KAKAO_REST_API_KEY',
-        'KAKAO_JAVASCRIPT_KEY', 
         'GOOGLE_PLACES_API_KEY'
     ]
     
@@ -67,10 +67,8 @@ CATEGORY_MAP = [
 ]
 
 # 환경 변수에서 API 키 로드 (기본값 없음 - 보안상 안전)
-KAKAO_REST_API_KEY = os.environ.get('KAKAO_REST_API_KEY')
-KAKAO_JAVASCRIPT_KEY = os.environ.get('KAKAO_JAVASCRIPT_KEY')
-OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
 GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY')
+OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
 
 def map_category_to_big_categories(category_name):
     """카카오 카테고리를 대분류로 매핑"""
@@ -82,79 +80,54 @@ def map_category_to_big_categories(category_name):
     return list(set(big_cats))  # 중복 제거
 
 def geocode_address(address):
-    """카카오 지오코딩 API로 주소를 좌표로 변환"""
-    if not KAKAO_REST_API_KEY:
-        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
+    """Google Geocoding API로 주소를 좌표로 변환"""
+    if not GOOGLE_PLACES_API_KEY:
+        print("GOOGLE_PLACES_API_KEY가 설정되지 않았습니다.")
         return None, None
         
-    url = "https://dapi.kakao.com/v2/local/search/address.json"
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
-    params = {"query": address}
+    url = "https://maps.googleapis.com/maps/api/geocode/json"
+    params = {
+        "address": address,
+        "key": GOOGLE_PLACES_API_KEY
+    }
     
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, params=params, timeout=10)
         data = response.json()
         
-        if data.get('documents'):
-            doc = data['documents'][0]
-            return float(doc['y']), float(doc['x'])  # lat, lng
+        if data.get('status') == 'OK' and data.get('results'):
+            result = data['results'][0]
+            location = result['geometry']['location']
+            return location['lat'], location['lng']
     except Exception as e:
         print(f"Geocoding error: {e}")
     
     return None, None
 
-def search_places_by_category(lat, lng, radius, category="음식점", page=1):
-    """카카오 Local API로 장소 검색"""
-    if not KAKAO_REST_API_KEY:
-        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
+def search_places_by_category(lat, lng, radius, category="restaurant", page=1):
+    """Google Places API로 장소 검색"""
+    if not GOOGLE_PLACES_API_KEY:
+        print("GOOGLE_PLACES_API_KEY가 설정되지 않았습니다.")
         return None
         
-    url = "https://dapi.kakao.com/v2/local/search/category.json"
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     params = {
-        "category_group_code": "FD6",  # 음식점
-        "x": lng,
-        "y": lat,
+        "location": f"{lat},{lng}",
         "radius": radius,
-        "page": page,
-        "size": 15,
-        "sort": "distance"
+        "type": "restaurant",
+        "key": GOOGLE_PLACES_API_KEY
     }
     
     try:
-        response = requests.get(url, headers=headers, params=params)
-        return response.json()
+        response = requests.get(url, params=params, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Google Places API 오류: {response.status_code} - {response.text}")
+            return None
     except Exception as e:
-        print(f"Kakao API error: {e}")
+        print(f"Google Places API error: {e}")
         return None
-
-def get_place_photos(place_id):
-    """카카오 Place API로 장소 사진 정보 조회"""
-    if not KAKAO_REST_API_KEY:
-        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
-        return None
-        
-    url = f"https://dapi.kakao.com/v2/local/place/{place_id}.json"
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
-    
-    try:
-        response = requests.get(url, headers=headers)
-        data = response.json()
-        
-        if data.get('documents'):
-            place_info = data['documents'][0]
-            
-            # 사진 정보가 있으면 첫 번째 사진 URL 반환
-            if 'photo' in place_info and place_info['photo'].get('photoList'):
-                photo_list = place_info['photo']['photoList']
-                if photo_list and len(photo_list) > 0:
-                    # 가장 큰 크기의 사진 선택
-                    best_photo = max(photo_list, key=lambda x: int(x.get('width', 0)) * int(x.get('height', 0)))
-                    return best_photo.get('originurl')
-    except Exception as e:
-        print(f"Place photos API error: {e}")
-    
-    return None
 
 def search_google_place(place_name, lat, lng):
     """Google Places API로 장소 검색"""
@@ -189,7 +162,6 @@ def search_google_place(place_name, lat, lng):
 def get_google_place_photos(place_id):
     """Google Places API로 장소 사진 정보 조회"""
     if not GOOGLE_PLACES_API_KEY:
-        print("GOOGLE_PLACES_API_KEY가 설정되지 않았습니다.")
         return None
         
     url = f"https://maps.googleapis.com/maps/api/place/details/json"
@@ -200,7 +172,7 @@ def get_google_place_photos(place_id):
     }
     
     try:
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=5)  # 타임아웃 단축
         data = response.json()
         
         if data.get('status') == 'OK' and data.get('result', {}).get('photos'):
@@ -216,6 +188,24 @@ def get_google_place_photos(place_id):
         print(f"Google Places photos API error: {e}")
     
     return None
+
+def get_place_image_optimized(place_name, lat, lng, categories):
+    """최적화된 장소 이미지 조회"""
+    if not GOOGLE_PLACES_API_KEY:
+        return search_food_image(place_name, categories)
+    
+    try:
+        # Google Places API로 장소 검색
+        google_place_id = search_google_place(place_name, lat, lng)
+        if google_place_id:
+            photo_url = get_google_place_photos(google_place_id)
+            if photo_url:
+                return photo_url
+    except Exception as e:
+        print(f"Google image search error for {place_name}: {e}")
+    
+    # Google API 실패시 카테고리 기반 이미지
+    return search_food_image(place_name, categories)
 
 def search_food_image(place_name, categories=None):
     """음식점 카테고리별 이미지 생성"""
@@ -245,28 +235,29 @@ def search_food_image(place_name, categories=None):
         return None
 
 def search_places_by_keyword(lat, lng, radius, keyword, page=1):
-    """카카오 Local API로 키워드 검색"""
-    if not KAKAO_REST_API_KEY:
-        print("KAKAO_REST_API_KEY가 설정되지 않았습니다.")
+    """Google Places API로 키워드 검색"""
+    if not GOOGLE_PLACES_API_KEY:
+        print("GOOGLE_PLACES_API_KEY가 설정되지 않았습니다.")
         return None
         
-    url = "https://dapi.kakao.com/v2/local/search/keyword.json"
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     params = {
-        "query": keyword,
-        "x": lng,
-        "y": lat,
+        "location": f"{lat},{lng}",
         "radius": radius,
-        "page": page,
-        "size": 15,
-        "sort": "distance"
+        "keyword": keyword,
+        "type": "restaurant",
+        "key": GOOGLE_PLACES_API_KEY
     }
     
     try:
-        response = requests.get(url, headers=headers, params=params)
-        return response.json()
+        response = requests.get(url, params=params, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Google Places 키워드 API 오류: {response.status_code} - {response.text}")
+            return None
     except Exception as e:
-        print(f"Kakao API error: {e}")
+        print(f"Google Places API error: {e}")
         return None
 
 def fetch_og_meta(url):
@@ -332,7 +323,13 @@ def category_match(place_cats, selected_cats):
 
 def calculate_score(place, radius, selected_categories):
     """장소 점수 계산"""
-    big_cats = json.loads(place['big_categories']) if place['big_categories'] else []
+    # big_categories가 이미 리스트인지 문자열인지 확인
+    if isinstance(place['big_categories'], list):
+        big_cats = place['big_categories']
+    elif isinstance(place['big_categories'], str):
+        big_cats = json.loads(place['big_categories']) if place['big_categories'] else []
+    else:
+        big_cats = []
     
     cat_score = category_match(big_cats, selected_categories)
     dist_score = distance_score(place['distance_m'], radius)
@@ -410,20 +407,26 @@ def lunch_home():
         'is_admin': True
     }
     
+    # API 키 검증 및 디버깅
+    print(f"DEBUG: GOOGLE_PLACES_API_KEY = {GOOGLE_PLACES_API_KEY}")
+    print(f"DEBUG: Key is None: {GOOGLE_PLACES_API_KEY is None}")
+    print(f"DEBUG: Key is empty: {GOOGLE_PLACES_API_KEY == ''}")
+    
     return render_template('noonpick/main.html', 
                          offices=offices,
-                         kakao_js_key=KAKAO_JAVASCRIPT_KEY,
+                         google_maps_key=GOOGLE_PLACES_API_KEY if GOOGLE_PLACES_API_KEY and GOOGLE_PLACES_API_KEY.strip() else None,
                          active='noonpick', 
                          user=user_info,
                          lang=lang)
 
 @bp.route('/api/lunch/reco')
 def recommend_lunch():
-    """점심 추천 API"""
+    """점심 추천 API - 실시간 검색"""
     office_code = request.args.get('office', 'seoul')
     radius = int(request.args.get('radius', 300))
     categories = request.args.get('cats', '').split(',') if request.args.get('cats') else []
-    exclude_ids = [int(x) for x in request.args.get('exclude', '').split(',') if x.strip()]
+    # exclude_ids는 실시간 검색에서는 문자열 ID 사용
+    exclude_ids = [x.strip() for x in request.args.get('exclude', '').split(',') if x.strip()]
     
     db = get_db()
     
@@ -432,56 +435,169 @@ def recommend_lunch():
     if not office:
         return jsonify({'error': '오피스를 찾을 수 없습니다.'}), 404
     
-    # 후보 장소 조회
-    excluded_clause = ""
-    params = [office['lat'], office['lng'], radius]
+    lat, lng = office['lat'], office['lng']
     
-    if exclude_ids:
-        excluded_clause = f"AND id NOT IN ({','.join(['?' for _ in exclude_ids])})"
-        params.extend(exclude_ids)
+    # 실시간 카카오 API 검색
+    print(f"실시간 검색 시작: office={office_code}, radius={radius}m, categories={categories}")
     
-    places = db.execute(f"""
-        SELECT id, name, lat, lng, big_categories, address, road_address, 
-               distance_m, kakao_place_url, phone, photo_url
-        FROM places 
-        WHERE distance_m <= ? {excluded_clause}
-        ORDER BY distance_m
-    """, [radius] + (exclude_ids if exclude_ids else [])).fetchall()
+    # 1. 카테고리 검색 (음식점)
+    category_places = []
+    try:
+        category_result = search_places_by_category(lat, lng, radius)
+        if category_result and category_result.get('results'):
+            for place in category_result['results']:
+                place_data = {
+                    'id': f"google_{place.get('place_id', '')}",
+                    'name': place['name'],
+                    'lat': place['geometry']['location']['lat'],
+                    'lng': place['geometry']['location']['lng'],
+                    'address': place.get('vicinity', ''),
+                    'road_address': place.get('vicinity', ''),
+                    'phone': place.get('formatted_phone_number', ''),
+                    'google_place_url': f"https://www.google.com/maps/place/?q=place_id:{place['place_id']}",
+                    'distance_m': int(place.get('distance', 0)),
+                    'big_categories': json.dumps(map_category_to_big_categories(place.get('name', ''))),
+                    'raw_category': place.get('types', ['restaurant'])[0] if place.get('types') else 'restaurant',
+                    'rating': place.get('rating', 0),  # Google API 별점
+                    'place_id': place['place_id']
+                }
+                category_places.append(place_data)
+    except Exception as e:
+        print(f"카테고리 검색 오류: {e}")
+    
+    # 2. 키워드 검색 (선택된 카테고리 기반) - 최적화
+    keyword_places = []
+    if categories:
+        try:
+            # 카테고리별 키워드 매핑 - 더 적은 키워드로 최적화
+            category_keywords = {
+                'KOREAN': ['한식'],
+                'JAPANESE': ['일식'],
+                'CHINESE': ['중식'],
+                'WESTERN': ['양식'],
+                'MEAT': ['고기'],
+                'SOUP': ['국'],
+                'NOODLE': ['국수'],
+                'RICE': ['덮밥'],
+                'CAFE': ['카페']
+            }
+            
+            # 선택된 카테고리별로 1개 키워드만 검색 (속도 향상)
+            search_keywords = []
+            for cat in categories:
+                if cat in category_keywords:
+                    search_keywords.append(category_keywords[cat][0])
+            
+            # 최대 3개 키워드만 검색
+            search_keywords = search_keywords[:3]
+            
+            for keyword in search_keywords:
+                keyword_result = search_places_by_keyword(lat, lng, radius, keyword)
+                if keyword_result and keyword_result.get('results'):
+                    for place in keyword_result['results']:
+                        place_data = {
+                            'id': f"google_{place.get('place_id', '')}",
+                            'name': place['name'],
+                            'lat': place['geometry']['location']['lat'],
+                            'lng': place['geometry']['location']['lng'],
+                            'address': place.get('vicinity', ''),
+                            'road_address': place.get('vicinity', ''),
+                            'phone': place.get('formatted_phone_number', ''),
+                            'google_place_url': f"https://www.google.com/maps/place/?q=place_id:{place['place_id']}",
+                            'distance_m': int(place.get('distance', 0)),
+                            'big_categories': json.dumps(map_category_to_big_categories(place.get('name', ''))),
+                            'raw_category': place.get('types', ['restaurant'])[0] if place.get('types') else 'restaurant',
+                            'rating': place.get('rating', 0),  # Google API 별점
+                            'place_id': place['place_id']
+                        }
+                        keyword_places.append(place_data)
+        except Exception as e:
+            print(f"키워드 검색 오류: {e}")
+    
+    # 3. 장소 통합 및 중복 제거
+    all_places = category_places + keyword_places
+    unique_places = {}
+    
+    for place in all_places:
+        # exclude_ids 필터링
+        if place['id'] in exclude_ids:
+            continue
+        
+        # 별점 3점 미만 필터링
+        if place['rating'] > 0 and place['rating'] < 3.0:
+            print(f"별점 3점 미만으로 제외: {place['name']} (별점: {place['rating']})")
+            continue
+            
+        # 장소명과 주소로 중복 제거
+        key = f"{place['name']}_{place['address']}"
+        if key not in unique_places or place['distance_m'] < unique_places[key]['distance_m']:
+            unique_places[key] = place
+    
+    places = list(unique_places.values())
     
     if not places:
         return jsonify({'error': '추천할 장소가 없습니다.'}), 404
     
-    # 점수 계산 및 상위 N개 선택
+    # 4. 사진 URL 생성 - 병렬 처리로 최적화
+    def process_place_image(place):
+        if not place.get('photo_url'):
+            categories = json.loads(place['big_categories']) if place['big_categories'] else []
+            place['photo_url'] = get_place_image_optimized(place['name'], place['lat'], place['lng'], categories)
+        return place
+    
+    # 상위 10개 장소만 이미지 처리 (성능 최적화)
+    top_places_for_images = places[:10]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        # 병렬로 이미지 처리
+        future_to_place = {executor.submit(process_place_image, place): place for place in top_places_for_images}
+        
+        for future in concurrent.futures.as_completed(future_to_place, timeout=10):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Image processing error: {e}")
+    
+    # 나머지 장소는 기본 이미지 사용
+    for place in places[10:]:
+        if not place.get('photo_url'):
+            categories = json.loads(place['big_categories']) if place['big_categories'] else []
+            place['photo_url'] = search_food_image(place['name'], categories)
+    
+    # 5. 점수 계산 및 상위 N개 선택
     places_with_scores = []
     for place in places:
         score = calculate_score(place, radius, categories)
         if score > 0.1:  # 최소 점수 필터
-            places_with_scores.append((dict(place), score))
+            places_with_scores.append((place, score))
     
     # 점수순 정렬 후 상위 10개
     places_with_scores.sort(key=lambda x: x[1], reverse=True)
     top_places = places_with_scores[:10]
     
-    # 가중 랜덤 샘플링으로 3개 선택
+    # 6. 가중 랜덤 샘플링으로 3개 선택
     selected = weighted_random_sample(top_places, 3)
     
     if not selected:
         return jsonify({'error': '추천할 장소가 없습니다.'}), 404
     
-    # OG 메타 정보 추가
+    # 7. OG 메타 정보 추가 - 최적화 (빠른 기본값 사용)
     result_places = []
     for place, score in selected:
-        og_meta = get_or_create_og_cache(place['kakao_place_url'])
-        place['og'] = og_meta
+        # OG 메타 정보는 빠른 기본값 사용 (API 호출 생략)
+        place['og'] = {
+            'title': place['name'],
+            'description': f"{place['address']} - {place['raw_category']}",
+            'image': place['photo_url']
+        }
         place['score'] = round(score, 3)
         result_places.append(place)
     
-    # 결과 구성
+    # 8. 결과 구성
     primary = result_places[0]
     alternatives = result_places[1:] if len(result_places) > 1 else []
     excluded_suggestion = exclude_ids + [place['id'] for place, _ in selected]
     
-    # 메뉴 추천 로그
+    # 9. 메뉴 추천 로그
     user_email = 'lwk9589@gmail.com'  # 현재 사용자
     noon_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     candidates = [place['name'] for place in result_places]
@@ -492,8 +608,11 @@ def recommend_lunch():
         'office': office_code,
         'radius': radius,
         'categories': categories,
-        'source': 'user'
+        'source': 'realtime',
+        'total_found': len(places)
     })
+    
+    print(f"실시간 검색 완료: {len(places)}개 장소 중 {len(result_places)}개 추천")
     
     return jsonify({
         'primary': primary,

@@ -147,51 +147,96 @@
   </div>
 </div>
 
-<!-- 카카오 지도 API -->
-<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_js_key }}"></script>
+<!-- Google Maps API -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_key }}&callback=initMap"></script>
 
 <script>
 let map;
 let markers = [];
 let excludedIds = [];
+let hasGoogleMap = {{ 'true' if google_maps_key and google_maps_key != 'None' and google_maps_key.strip() else 'false' }};
+
+// 디버깅 정보
+console.log('google_maps_key:', '{{ google_maps_key }}');
+console.log('hasGoogleMap:', hasGoogleMap);
 
 // 지도 초기화
 function initMap() {
   const container = document.getElementById('map');
-  const options = {
-    center: new kakao.maps.LatLng(37.5093056, 127.0610611), // 서울 오피스 정확한 좌표
-    level: 3
-  };
-  map = new kakao.maps.Map(container, options);
+  
+  if (!hasGoogleMap) {
+    // API 키가 없을 때 대체 UI 표시
+    container.innerHTML = `
+      <div class="d-flex align-items-center justify-content-center h-100 bg-light">
+        <div class="text-center text-muted">
+          <h5>🗺️ 지도 서비스</h5>
+          <p class="mb-0">Google Maps API 키가 설정되지 않았습니다.</p>
+          <small>API 키를 설정하면 지도 기능을 사용할 수 있습니다.</small>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  
+  // Google Maps 초기화
+  try {
+    const options = {
+      center: { lat: 37.5093056, lng: 127.0610611 }, // 서울 오피스 정확한 좌표
+      zoom: 15
+    };
+    map = new google.maps.Map(container, options);
+    console.log('Google Maps 초기화 완료');
+  } catch (error) {
+    console.error('Google Maps 초기화 실패:', error);
+    container.innerHTML = `
+      <div class="d-flex align-items-center justify-content-center h-100 bg-light">
+        <div class="text-center text-muted">
+          <h5>🗺️ 지도 서비스</h5>
+          <p class="mb-0">지도 초기화에 실패했습니다.</p>
+          <small>API 키를 확인해주세요.</small>
+        </div>
+      </div>
+    `;
+  }
 }
 
 // 마커 제거
 function clearMarkers() {
+  if (!hasGoogleMap || !map) return;
   markers.forEach(marker => marker.setMap(null));
   markers = [];
 }
 
 // 마커 추가
 function addMarker(lat, lng, title, isPrimary = false) {
-  const position = new kakao.maps.LatLng(lat, lng);
-  const marker = new kakao.maps.Marker({
+  if (!hasGoogleMap || !map || typeof google === 'undefined' || !google.maps) return;
+  
+  const position = { lat: lat, lng: lng };
+  const marker = new google.maps.Marker({
     position: position,
-    title: title
+    title: title,
+    map: map,
+    icon: isPrimary ? {
+      url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      scaledSize: new google.maps.Size(30, 30)
+    } : {
+      url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+      scaledSize: new google.maps.Size(25, 25)
+    }
   });
   
-  marker.setMap(map);
   markers.push(marker);
   
   // 인포윈도우
-  const infowindow = new kakao.maps.InfoWindow({
+  const infowindow = new google.maps.InfoWindow({
     content: `<div style="padding:5px;font-size:12px;text-align:center;">${title}</div>`
   });
   
-  kakao.maps.event.addListener(marker, 'mouseover', function() {
+  marker.addListener('mouseover', function() {
     infowindow.open(map, marker);
   });
   
-  kakao.maps.event.addListener(marker, 'mouseout', function() {
+  marker.addListener('mouseout', function() {
     infowindow.close();
   });
   
@@ -269,13 +314,14 @@ function createPlaceCard(place, isPrimary = false) {
             <p class="card-text small mb-2">
               📍 ${place.address || place.road_address || '주소 정보 없음'}<br>
               📏 ${place.distance_m}m · ${categoryBadges}
+              ${place.rating > 0 ? `<br>⭐ ${place.rating.toFixed(1)}점` : ''}
               ${place.phone ? `<br>📞 ${place.phone}` : ''}
             </p>
             <div class="d-flex gap-2">
-              <a href="${place.kakao_place_url}" target="_blank" class="btn btn-outline-primary btn-sm">
+              <a href="${place.google_place_url}" target="_blank" class="btn btn-outline-primary btn-sm">
                 🔍 가게 상세보기
               </a>
-              <button class="btn btn-success btn-sm" onclick="recordVisit(${place.id})">
+              <button class="btn btn-success btn-sm" onclick="recordVisit('${place.id}')">
                 ✅ 선택
               </button>
             </div>
@@ -311,13 +357,17 @@ async function getRecommendation() {
     
     // 지도 업데이트
     clearMarkers();
-    if (data.primary) {
+    if (data.primary && hasGoogleMap && map) {
       addMarker(data.primary.lat, data.primary.lng, data.primary.name, true);
-      map.setCenter(new kakao.maps.LatLng(data.primary.lat, data.primary.lng));
+      if (typeof google !== 'undefined' && google.maps) {
+        map.setCenter({ lat: data.primary.lat, lng: data.primary.lng });
+      }
     }
     
     data.alternatives?.forEach(place => {
-      addMarker(place.lat, place.lng, place.name, false);
+      if (hasGoogleMap && map) {
+        addMarker(place.lat, place.lng, place.name, false);
+      }
     });
     
     // 결과 카드 표시
